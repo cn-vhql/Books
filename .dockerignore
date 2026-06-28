@@ -1,0 +1,12 @@
+.git
+.github
+.claude
+node_modules
+build
+data
+httpserver/uploads
+httpserver/httpserver
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

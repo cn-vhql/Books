@@ -1,0 +1,562 @@
+body {
+  -webkit-tap-highlight-color: transparent;
+  background: rgba(47, 52, 55, 1);
+  color: rgba(235, 235, 235, 1);
+}
+a {
+  color: lightskyblue;
+  text-decoration: none;
+}
+.booklist-shelf-list,
+.lang-setting-dropdown,
+.delete-tag-container,
+.setting-subtitle,
+.more-option-text,
+.book-subcontent-name,
+.pin-keypad-title,
+.pin-key {
+  color: rgba(235, 235, 235, 1);
+}
+
+.add-dialog-shelf-list-box,
+.add-dialog-new-shelf-box,
+.add-dialog-cancel,
+.delete-dialog-cancel,
+.edit-dialog-book-name-box,
+.edit-dialog-book-author-box,
+.edit-dialog-input,
+.edit-dialog-textarea,
+.edit-dialog-cancel,
+.tag-list-item,
+.token-dialog-cancel,
+.voice-add-cancel,
+.lang-setting-dropdown,
+.tag-list-item-new,
+.input-value,
+.import-from-cloud,
+.booklist-shelf-list,
+.token-dialog-token-box,
+.voice-add-content-box,
+.token-dialog-username-box,
+.feedback-dialog-content-box,
+.token-dialog-url-box,
+.token-dialog-username-box,
+.account-login-option,
+.font-featured-download-btn,
+.token-dialog-password-box,
+.general-setting-dropdown,
+.delete-dialog-uncheck-icon,
+.next-chapter,
+.progress-slide-circle,
+.setting-dialog-location-title,
+.delete-dialog-uncheck-icon,
+.previous-chapter,
+.color-option,
+.line-option,
+.token-dialog-link-text,
+.token-dialog-token-text,
+.nav-search-page-item,
+.pin-dot {
+  border: 1.5px solid rgba(235, 235, 235, 1);
+}
+
+.header-search-box,
+.header-search-box::placeholder,
+.feedback-dialog-content-box::placeholder,
+.voice-add-content-box::placeholder,
+.token-dialog-username-box::placeholder,
+.token-dialog-token-box::placeholder,
+.header-search-text,
+.pin-key-cancel {
+  color: rgba(235, 235, 235, 0.8);
+}
+.delete-digest-button,
+.add-dialog-confirm,
+.font-featured-progress-bar,
+.backup-page-backup-selector,
+.delete-dialog-confirm,
+.book-item-config,
+.book-cover-item-config,
+.download-desk-button,
+.edit-dialog-confirm,
+.change-location-button,
+.token-dialog-confirm,
+.add-dialog-shelf-list-option,
+.voice-add-confirm,
+.new-version-open,
+.update-dialog-container-button,
+.import-from-local,
+.side-menu-selector-container,
+.previous-chapter-single-container,
+.next-chapter-single-container,
+.book-bookmark-link,
+.message-box-container,
+.only-local-icon,
+.voice-add-content-box,
+.token-dialog-username-box,
+.token-dialog-token-box,
+.backup-source-dropdown,
+.popup-close,
+.pin-keypad-container,
+.biometric-auth-container,
+.biometric-auth-button {
+  background-color: rgba(71, 76, 80, 1);
+  color: rgba(235, 235, 235, 1);
+}
+.previous-chapter-single-container,
+.next-chapter-single-container {
+  opacity: 0.7;
+}
+.pin-dot.pin-dot-filled {
+  background-color: rgba(235, 235, 235, 1);
+  color: rgba(47, 52, 55, 1);
+}
+.header-search-box,
+#jumpPage,
+#jumpChapter,
+#newTag,
+.pin-key {
+  background-color: rgba(235, 235, 235, 0.1);
+}
+
+.backup-page-close-icon:hover,
+.sidebar-list-icon:hover,
+.nav-close-icon:hover,
+.setting-close-container:hover,
+.side-menu-hover-container,
+.setting-dialog-location-title,
+.note-option:hover,
+.digest-option:hover,
+.translation-option:hover,
+.speaker-option:hover,
+.search-book-option:hover,
+.dict-option:hover,
+.wikipedia-option:hover,
+.browser-option:hover,
+.header-search-text:hover,
+.reader-setting-icon-container:hover,
+.setting-icon-container:hover,
+.animation-mask,
+.animation-mask-local,
+.sort-by-category-list:hover,
+.more-option-item:hover,
+.sort-by-order-list:hover,
+.backup-page-backup:hover,
+.action-dialog-add:hover,
+.action-dialog-delete:hover,
+.action-dialog-edit:hover,
+.backup-page-next:hover,
+.book-manage-title:hover,
+.backup-page-list-item:hover,
+.restore-file:hover,
+.copy-option:hover {
+  background-color: rgba(235, 235, 235, 0.035);
+}
+.drag-background {
+  background: hsla(0, 0%, 100%, 0.2);
+}
+.action-dialog-container,
+.select-more-actions,
+.add-dialog-container,
+.backup-page-container,
+.delete-dialog-container,
+.download-desk-container,
+.edit-dialog-container,
+.loading-dialog,
+.setting-dialog-container,
+.feedback-dialog-container,
+.token-dialog-container,
+.new-version,
+.sort-dialog-container,
+.popup-menu-box,
+.popup-color-box,
+.popup-box-container,
+.loading-page-cover,
+.loading-page-cover,
+.navigation-panel,
+.book-operation-panel,
+.progress-panel,
+.input-value,
+.tag-list-item-new,
+.tag-list-item,
+.more-options-dropdown,
+.setting-panel-parent,
+.protection-overlay {
+  background: rgba(47, 52, 55, 1);
+  box-shadow: 0px 0px 7px rgba(0, 0, 0, 0.2);
+}
+.setting-dialog-sidebar {
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+.setting-dialog-sidebar-item.active {
+  background: rgba(255, 255, 255, 0.1);
+}
+.plugin-tab-bar {
+  background: rgba(47, 52, 55, 1);
+}
+.plugin-tab-item-active {
+  background: rgba(255, 255, 255, 0.12);
+}
+.book-item-image,
+.book-item-cover,
+.book-cover,
+.detail-cover,
+.detail-cover-background-container,
+.book-cover-item-cover {
+  background: rgba(235, 235, 235, 0.1);
+  box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.18);
+}
+.backup-page-backup-selector,
+.message-box-container {
+  box-shadow: 0px 0px 12px rgba(75, 75, 75, 1);
+}
+
+.add-bookmark-button,
+.exit-reading-button,
+.add-bookmark-button,
+.enter-fullscreen-button,
+.navigation-header {
+  box-shadow: 0px 0px 5px rgba(30, 30, 30, 1);
+}
+.background-color-circle,
+.background-box1,
+.background-box2,
+.background-box3 {
+  box-shadow: 0px 0px 2px rgba(235, 235, 235, 0.18);
+}
+.book-spine,
+.background-box1,
+.background-box2,
+.background-box3 {
+  border: 1px solid rgba(191, 191, 191, 0.3);
+}
+.add-dialog-cancel,
+.delete-dialog-cancel,
+.edit-dialog-cancel,
+.loading-dialog,
+.lang-setting-dropdown,
+.token-dialog-cancel,
+.voice-add-cancel,
+.new-version,
+.popup-menu-box,
+.popup-color-box,
+.popup-box-container,
+.general-setting-dropdown,
+.card-list-item-card,
+.import-from-cloud,
+.only-local-slider,
+.single-control-button,
+.add-dialog-shelf-list-box,
+.add-dialog-new-shelf-box,
+.edit-dialog-book-name-box,
+.edit-dialog-book-author-box,
+.edit-dialog-input,
+.edit-dialog-textarea,
+.setting-dialog-pro-button,
+.booklist-shelf-list,
+.progress-slide-circle {
+  background: rgba(47, 52, 55, 1);
+}
+.single-control-switch,
+::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb:hover,
+.active-tag,
+.active-page,
+.sk-chase-dot:before {
+  background-color: rgba(235, 235, 235, 0.5);
+}
+@-moz-document url-prefix() {
+  .single-control-switch {
+    border: 1.5px solid rgba(235, 235, 235, 0.3);
+    background-color: rgba(71, 76, 80, 1);
+  }
+}
+.exit-reading-text,
+.add-bookmark-text,
+.token-dialog-token-text,
+.enter-fullscreen-text,
+.image-operation,
+.add-bookmark-icon,
+.exit-reading-icon,
+.message-box-icon,
+.active-icon,
+.active-selector,
+.enter-fullscreen-icon,
+.icon-popup,
+.token-dialog-link-text,
+.token-dialog-token-text,
+.delete-dialog-uncheck-icon,
+.book-bookmark-link,
+.general-setting-dropdown,
+.trans-lang-selector,
+.original-lang-selector,
+.editor-box,
+#jumpPage,
+#jumpChapter,
+.add-dialog-shelf-list-box,
+.add-dialog-new-shelf-box,
+.edit-dialog-book-name-box,
+.edit-dialog-book-author-box,
+.edit-dialog-input,
+.edit-dialog-textarea,
+.card-list-item-show-more,
+.cover-banner,
+.book-more-action,
+.reading-progress-icon,
+.book-love-icon,
+input,
+.input-value {
+  color: rgba(235, 235, 235, 1);
+}
+.book-content-name,
+.book-subcontent-name,
+.book-content-header,
+.book-bookmark-list,
+.nav-search-list-item,
+.sort-dialog-seperator {
+  border-bottom: 1px solid rgba(235, 235, 235, 0.1);
+}
+.card-list-item-card {
+  border: 1px solid rgba(235, 235, 235, 0.1);
+}
+.popup-menu-triangle-up,
+.active-tag,
+.active-page,
+.popup-menu-triangle-down {
+  color: rgba(47, 52, 55, 1) !important;
+}
+
+:root {
+  --ui-btn-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  --ui-btn-shadow-hover: 0 14px 28px rgba(0, 0, 0, 0.34);
+  --ui-btn-primary-bg: linear-gradient(180deg, #7d6a58 0%, #635243 100%);
+  --ui-btn-primary-text: #f6efe7;
+  --ui-btn-secondary-bg: rgba(255, 255, 255, 0.06);
+  --ui-btn-secondary-border: rgba(255, 255, 255, 0.12);
+  --ui-btn-secondary-text: rgba(241, 236, 229, 0.92);
+  --ui-btn-danger-bg: rgba(186, 106, 106, 0.14);
+  --ui-btn-danger-border: rgba(201, 125, 125, 0.2);
+  --ui-btn-danger-text: #f0c9c9;
+}
+
+.sidebar-brand {
+  color: #d8c5b0;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.42),
+    0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.setting-dialog-container {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.34),
+    0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.setting-dialog-sidebar-item {
+  color: rgba(235, 235, 235, 0.78);
+}
+
+.setting-dialog-sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.setting-dialog-sidebar-item.active {
+  color: rgba(247, 241, 233, 0.96);
+  background: rgba(216, 197, 176, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(216, 197, 176, 0.12);
+}
+
+.setting-dialog-sidebar-section-title,
+.setting-dialog-main-kicker,
+.setting-dialog-sidebar-subtitle,
+.server-account-summary-label,
+.server-account-table th,
+.server-account-status,
+.detail-dialog-server-author,
+.detail-dialog-server-meta-item span,
+.detail-dialog-server-note-top,
+.detail-dialog-server-result-meta,
+.detail-dialog-server-empty,
+.server-account-empty {
+  color: rgba(235, 235, 235, 0.62);
+}
+
+.setting-dialog-main-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.setting-dialog-content-surface {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.setting-close-container {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.setting-form-row {
+  background: rgba(255, 255, 255, 0.025);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.setting-form-row + .setting-form-row {
+  margin-top: 8px;
+}
+
+.setting-form-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.setting-form-title,
+.setting-form-section-title,
+.setting-dialog-sidebar-title,
+.setting-dialog-main-title,
+.server-account-section-title,
+.server-account-summary-value,
+.detail-dialog-server-title,
+.detail-dialog-server-section-title,
+.detail-dialog-server-result-title {
+  color: rgba(247, 241, 233, 0.96);
+}
+
+.setting-form-help,
+.setting-option-subtitle,
+.setting-dialog-location-title,
+.detail-dialog-server-section-content,
+.detail-dialog-server-desc,
+.detail-dialog-server-note-text,
+.detail-dialog-server-note-quote,
+.detail-dialog-server-meta-item strong {
+  color: rgba(235, 235, 235, 0.74);
+}
+
+.lang-setting-dropdown,
+.general-setting-dropdown,
+.server-account-select,
+.server-account-inline-select {
+  color: rgba(241, 236, 229, 0.94);
+  border-color: rgba(255, 255, 255, 0.12);
+  background-color: rgba(255, 255, 255, 0.05);
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.25 4.5 6 8.25 9.75 4.5' fill='none' stroke='%23d8c6b1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.16);
+}
+
+.lang-setting-dropdown:hover,
+.general-setting-dropdown:hover,
+.server-account-select:hover,
+.server-account-inline-select:hover {
+  border-color: rgba(216, 198, 177, 0.26);
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+.lang-setting-dropdown:focus,
+.general-setting-dropdown:focus,
+.server-account-select:focus,
+.server-account-inline-select:focus,
+.server-account-input:focus,
+.detail-dialog-server-input:focus,
+.detail-dialog-server-textarea:focus {
+  border-color: rgba(216, 198, 177, 0.34);
+  box-shadow:
+    0 0 0 4px rgba(216, 198, 177, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.lang-setting-option,
+.general-setting-option {
+  color: rgba(241, 236, 229, 0.94);
+  background: rgba(47, 52, 55, 1);
+}
+
+.server-account-summary-item,
+.server-account-section,
+.server-account-create-panel,
+.server-account-password-row td,
+.detail-dialog-server-section,
+.detail-dialog-server-note-card,
+.detail-dialog-server-meta-item,
+.detail-dialog-server-result-item {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.server-account-input,
+.detail-dialog-server-input,
+.detail-dialog-server-textarea {
+  color: rgba(241, 236, 229, 0.94);
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.server-account-table-wrapper {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.server-account-table th,
+.server-account-table td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.server-account-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.server-account-badge {
+  color: rgba(241, 236, 229, 0.92);
+  background: rgba(216, 198, 177, 0.12);
+}
+
+.server-account-status.enabled {
+  color: #cfe0d3;
+  background: rgba(115, 145, 123, 0.18);
+}
+
+.server-account-status.disabled {
+  color: #dbcfc4;
+  background: rgba(135, 120, 108, 0.18);
+}
+
+.detail-dialog-server-container {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.34),
+    0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.detail-dialog-server-header-button.active {
+  background: rgba(216, 198, 177, 0.14);
+  color: rgba(247, 241, 233, 0.96);
+  border-color: rgba(216, 198, 177, 0.16);
+}
+
+.detail-dialog-server-header-button:hover,
+.detail-dialog-server-close-icon:hover,
+.detail-dialog-server-secondary:hover {
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.24);
+}
+
+.detail-dialog-server-tab {
+  color: rgba(235, 235, 235, 0.74);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+.detail-dialog-server-tab.active {
+  color: rgba(247, 241, 233, 0.96);
+  background: rgba(216, 198, 177, 0.14);
+  border-color: rgba(216, 198, 177, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.detail-dialog-server-note-quote {
+  border-left-color: rgba(216, 198, 177, 0.26);
+}

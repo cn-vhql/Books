@@ -1,0 +1,131 @@
+.add-dialog-container {
+  width: 309px;
+  height: 189px;
+  opacity: 1;
+  position: absolute;
+  left: calc(50vw - 155px);
+  top: calc(50vh - 95px);
+  z-index: 10;
+  animation: popup 0.1s ease-in-out 0s 1;
+  border-radius: 5px;
+}
+.add-dialog-title {
+  width: 120px;
+  height: 20px;
+  font-size: 18px;
+  opacity: 1;
+  width: 100%;
+  text-align: center;
+  font-weight: 500;
+  margin-top: 15px;
+}
+.add-dialog-shelf-list-container {
+  width: 100%;
+  font-size: 15px;
+  line-height: 14px;
+  opacity: 1;
+  margin-top: 15px;
+  height: 30px;
+}
+.add-dialog-shelf-list-text {
+  width: 50px;
+  float: left;
+  margin-left: 25px;
+  margin-top: 7px;
+}
+.add-dialog-shelf-list-box {
+  float: left;
+  width: 210px;
+  height: 31px;
+  opacity: 1;
+  box-sizing: border-box;
+  font-size: 15px;
+  line-height: 31px;
+  border-radius: 5px;
+}
+.add-dialog-shelf-list-option {
+  width: 169px;
+  height: 31px;
+  opacity: 1;
+  box-sizing: border-box;
+  margin-left: 16px;
+  font-size: 15px;
+  line-height: 31px;
+  cursor: pointer;
+  text-align: left;
+}
+.add-dialog-new-shelf-text {
+  width: 50px;
+  float: left;
+  margin-left: 25px;
+  margin-top: 7px;
+}
+.add-dialog-new-shelf-box {
+  float: left;
+  width: 210px;
+  height: 31px;
+  opacity: 1;
+  box-sizing: border-box;
+  padding-left: 5px;
+  font-size: 15px;
+  line-height: 31px;
+  border-radius: 5px;
+}
+.add-dialog-button-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+  position: absolute;
+  right: 25px;
+  bottom: 15px;
+}
+.add-dialog-cancel {
+  min-width: 72px;
+  height: var(--ui-btn-height-sm);
+  opacity: 1;
+  border-radius: var(--ui-btn-radius);
+  padding: var(--ui-btn-padding);
+  font-size: var(--ui-btn-font-size);
+  font-weight: var(--ui-btn-font-weight);
+  margin-right: 10px;
+  line-height: var(--ui-btn-height-sm);
+  opacity: 1;
+  text-align: center;
+  cursor: pointer;
+  border: 1px solid var(--ui-btn-secondary-border);
+  background: var(--ui-btn-secondary-bg);
+  color: var(--ui-btn-secondary-text);
+  box-sizing: border-box;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.add-dialog-confirm {
+  min-width: 76px;
+  height: var(--ui-btn-height-md);
+  opacity: 1;
+  font-size: var(--ui-btn-font-size);
+  font-weight: var(--ui-btn-font-weight);
+  border-radius: var(--ui-btn-radius);
+  padding: 0 16px;
+  line-height: var(--ui-btn-height-md);
+  opacity: 1;
+  text-align: center;
+  cursor: pointer;
+  color: var(--ui-btn-primary-text);
+  background: var(--ui-btn-primary-bg);
+  box-shadow: var(--ui-btn-shadow);
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.add-dialog-cancel:hover,
+.add-dialog-confirm:hover {
+  transform: translateY(-1px);
+}
+.add-dialog-cancel:hover {
+  box-shadow: 0 8px 16px rgba(76, 69, 61, 0.08);
+}
+.add-dialog-confirm:hover {
+  box-shadow: var(--ui-btn-shadow-hover);
+}

@@ -1,0 +1,30 @@
+:80 {
+	root * /usr/share/caddy
+	file_server
+
+	handle_path /api/* {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	handle_path /opds/* {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	handle_path /upload {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	handle_path /download {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	handle_path /delete {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	handle_path /list {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	try_files {path} /index.html
+}

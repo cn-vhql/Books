@@ -1,0 +1,346 @@
+import React from "react";
+import { backgroundList, textList } from "../../../constants/themeList";
+import StyleUtil from "../../../utils/reader/styleUtil";
+import "./themeList.css";
+import { Trans } from "react-i18next";
+import { ThemeListProps, ThemeListState } from "./interface";
+import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { HexColorPicker } from "react-colorful";
+import toast from "react-hot-toast";
+import { normalizePickerColor, parseColorInput } from "../../../utils/common";
+
+class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
+  constructor(props: ThemeListProps) {
+    super(props);
+    this.state = {
+      currentBackgroundIndex: backgroundList
+        .concat(ConfigService.getAllListConfig("themeColors"))
+        .findIndex((item) => {
+          return (
+            item ===
+            (ConfigService.getReaderConfig("backgroundColor") ||
+              "rgba(255,255,255,1)")
+          );
+        }),
+      currentTextIndex: textList
+        .concat(ConfigService.getAllListConfig("themeColors"))
+        .findIndex((item) => {
+          return (
+            item ===
+            (ConfigService.getReaderConfig("textColor") || "rgba(0,0,0,1)")
+          );
+        }),
+      isShowTextPicker: false,
+      isShowBgPicker: false,
+      bgColorInput: normalizePickerColor(
+        ConfigService.getReaderConfig("backgroundColor"),
+        "#ffffff"
+      ),
+      textColorInput: normalizePickerColor(
+        ConfigService.getReaderConfig("textColor"),
+        "#000000"
+      ),
+    };
+  }
+  handleChangeBgColor = (color: string, index: number = -1) => {
+    ConfigService.setReaderConfig("backgroundColor", color);
+    this.props.handleBackgroundColor(color);
+    this.setState({
+      currentBackgroundIndex: index,
+    });
+    if (index === 1) {
+      ConfigService.setReaderConfig("textColor", "rgba(255,255,255,1)");
+    } else if (
+      index === 0 &&
+      ConfigService.getReaderConfig("backgroundColor") === "rgba(255,255,255,1)"
+    ) {
+      ConfigService.setReaderConfig("textColor", "rgba(0,0,0,1)");
+    }
+    this.props.renderBookFunc();
+  };
+
+  handleChooseBgColor = (color: string) => {
+    this.setState({ bgColorInput: color });
+    ConfigService.setReaderConfig("backgroundColor", color);
+    this.props.handleBackgroundColor(color);
+    StyleUtil.addDefaultCss(this.props.currentBook.key);
+  };
+  handleColorTextPicker = (isShowTextPicker: boolean) => {
+    if (
+      !isShowTextPicker &&
+      textList
+        .concat(ConfigService.getAllListConfig("themeColors"))
+        .findIndex((item) => {
+          return (
+            item ===
+            (ConfigService.getReaderConfig("textColor") || "rgba(0,0,0,1)")
+          );
+        }) === -1
+    ) {
+      ConfigService.setListConfig(
+        ConfigService.getReaderConfig("textColor"),
+        "themeColors"
+      );
+    }
+    this.setState({ isShowTextPicker });
+  };
+  handleColorBgPicker = (isShowBgPicker: boolean) => {
+    if (
+      !isShowBgPicker &&
+      backgroundList
+        .concat(ConfigService.getAllListConfig("themeColors"))
+        .findIndex((item) => {
+          return (
+            item ===
+            (ConfigService.getReaderConfig("backgroundColor") ||
+              "rgba(255,255,255,1)")
+          );
+        }) === -1
+    ) {
+      ConfigService.setListConfig(
+        ConfigService.getReaderConfig("backgroundColor"),
+        "themeColors"
+      );
+    }
+    this.setState({ isShowBgPicker });
+  };
+  handleChooseTextColor = (color: string) => {
+    this.setState({
+      currentTextIndex: textList
+        .concat(ConfigService.getAllListConfig("themeColors"))
+        .indexOf(color),
+      textColorInput: color,
+    });
+    ConfigService.setReaderConfig("textColor", color);
+    this.props.renderBookFunc();
+  };
+  render() {
+    const renderBackgroundColorList = () => {
+      return backgroundList
+        .concat(ConfigService.getAllListConfig("themeColors"))
+        .map((item, index) => {
+          return (
+            <li
+              key={item + index}
+              className={
+                index === this.state.currentBackgroundIndex
+                  ? "active-color background-color-circle"
+                  : "background-color-circle"
+              }
+              onClick={() => {
+                this.handleChangeBgColor(item, index);
+              }}
+              style={{ backgroundColor: item }}
+            >
+              {index > 3 && (
+                <span
+                  className="icon-close theme-color-delete theme-color-delete-hover theme-color-delete-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    ConfigService.deleteListConfig(item, "themeColors");
+                    if (index === this.state.currentBackgroundIndex) {
+                      this.handleChangeBgColor(backgroundList[0], 0);
+                    } else {
+                      this.forceUpdate();
+                    }
+                  }}
+                ></span>
+              )}
+            </li>
+          );
+        });
+    };
+    const renderTextColorList = () => {
+      return textList
+        .concat(ConfigService.getAllListConfig("themeColors"))
+        .map((item, index) => {
+          return (
+            <li
+              key={item + index}
+              className={
+                index === this.state.currentTextIndex
+                  ? "active-color background-color-circle"
+                  : "background-color-circle"
+              }
+              onClick={() => {
+                this.handleChooseTextColor(item);
+              }}
+              style={{ backgroundColor: item }}
+            >
+              {index > 3 && (
+                <span
+                  className="icon-close theme-color-delete theme-color-delete-hover"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    ConfigService.deleteListConfig(item, "themeColors");
+                    if (index === this.state.currentTextIndex) {
+                      this.handleChooseTextColor(textList[0]);
+                    } else {
+                      this.forceUpdate();
+                    }
+                  }}
+                ></span>
+              )}
+            </li>
+          );
+        });
+    };
+    return (
+      <div className="background-color-setting">
+        <div
+          className="background-color-text"
+          style={{
+            display: "flex",
+            justifyContent: "flex-start",
+            alignItems: "center",
+          }}
+        >
+          <Trans>Background color</Trans>
+          <span
+            className="theme-color-clear-button"
+            onClick={() => {
+              ConfigService.setReaderConfig("backgroundColor", "");
+              this.props.handleBackgroundColor("");
+              toast.success(this.props.t("Removal successful"));
+              this.props.renderBookFunc();
+            }}
+          >
+            <Trans>Clear</Trans>{" "}
+            <span className="icon-trash" style={{ fontSize: "13px" }}></span>
+          </span>
+        </div>
+        <ul className="background-color-list">
+          <li
+            className="background-color-circle"
+            onClick={() => {
+              this.handleColorBgPicker(!this.state.isShowBgPicker);
+            }}
+          >
+            <span
+              className={this.state.isShowBgPicker ? "icon-check" : "icon-more"}
+            ></span>
+          </li>
+
+          {renderBackgroundColorList()}
+        </ul>
+        {this.state.isShowBgPicker && (
+          <div style={{ margin: "10px 20px" }}>
+            <HexColorPicker
+              color={normalizePickerColor(
+                ConfigService.getReaderConfig("backgroundColor"),
+                "#ffffff"
+              )}
+              onChange={this.handleChooseBgColor}
+              style={{
+                marginBottom: 10,
+                animation: "fade-in 0.2s ease-in-out 0s 1",
+              }}
+            />
+            <input
+              className="color-input-box"
+              value={this.state.bgColorInput}
+              placeholder="#rrggbb / rgba(r,g,b,a)"
+              onChange={(e) => this.setState({ bgColorInput: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const hex = parseColorInput(this.state.bgColorInput);
+                  if (hex) this.handleChooseBgColor(hex);
+                }
+              }}
+              onBlur={() => {
+                const hex = parseColorInput(this.state.bgColorInput);
+                if (hex) this.handleChooseBgColor(hex);
+                else
+                  this.setState({
+                    bgColorInput: normalizePickerColor(
+                      ConfigService.getReaderConfig("backgroundColor"),
+                      "#ffffff"
+                    ),
+                  });
+              }}
+            />
+          </div>
+        )}
+        <div
+          className="background-color-text"
+          style={{
+            display: "flex",
+            justifyContent: "flex-start",
+            alignItems: "center",
+          }}
+        >
+          <Trans>Text color</Trans>
+          <span
+            className="theme-color-clear-button"
+            onClick={() => {
+              ConfigService.setReaderConfig("textColor", "");
+              toast.success(this.props.t("Removal successful"));
+              this.props.renderBookFunc();
+            }}
+          >
+            <Trans>Clear</Trans>{" "}
+            <span className="icon-trash" style={{ fontSize: "13px" }}></span>
+          </span>
+        </div>
+        <ul className="background-color-list">
+          <li
+            className="background-color-circle"
+            onClick={() => {
+              this.handleColorTextPicker(!this.state.isShowTextPicker);
+            }}
+          >
+            <span
+              className={
+                this.state.isShowTextPicker ? "icon-check" : "icon-more"
+              }
+            ></span>
+          </li>
+
+          {renderTextColorList()}
+        </ul>
+        {this.state.isShowTextPicker && (
+          <div style={{ margin: "10px 20px" }}>
+            <HexColorPicker
+              color={normalizePickerColor(
+                ConfigService.getReaderConfig("textColor"),
+                "#000000"
+              )}
+              onChange={this.handleChooseTextColor}
+              style={{
+                marginBottom: 10,
+                animation: "fade-in 0.2s ease-in-out 0s 1",
+              }}
+            />
+            <input
+              className="color-input-box"
+              value={this.state.textColorInput}
+              placeholder="#rrggbb / rgba(r,g,b,a)"
+              onChange={(e) =>
+                this.setState({ textColorInput: e.target.value })
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const hex = parseColorInput(this.state.textColorInput);
+                  if (hex) this.handleChooseTextColor(hex);
+                }
+              }}
+              onBlur={() => {
+                const hex = parseColorInput(this.state.textColorInput);
+                if (hex) this.handleChooseTextColor(hex);
+                else
+                  this.setState({
+                    textColorInput: normalizePickerColor(
+                      ConfigService.getReaderConfig("textColor"),
+                      "#000000"
+                    ),
+                  });
+              }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+}
+
+export default ThemeList;

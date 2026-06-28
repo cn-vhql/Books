@@ -1,0 +1,49 @@
+import { withTranslation } from "react-i18next";
+import { connect } from "react-redux";
+import SettingSwitch from "./component";
+import { stateType } from "../../../store";
+import {
+  handleHideFooter,
+  handleHideHeader,
+  handleHideAIButton,
+  handleHideBackground,
+  handleHideMenuButton,
+  handleHideAudiobookButton,
+  handleHidePageButton,
+  handleHidePDFConvertButton,
+  handleHideScaleButton,
+  handleShowBorder,
+  handleSetting,
+  handleSettingMode,
+  handleBackgroundColor,
+} from "../../../store/actions";
+
+const mapStateToProps = (state: stateType) => {
+  return {
+    currentBook: state.book.currentBook,
+    renderBookFunc: state.book.renderBookFunc,
+    plugins: state.manager.plugins,
+    htmlBook: state.reader.htmlBook,
+    isAuthed: state.manager.isAuthed as boolean,
+    isServerMode: state.manager.isServerMode as boolean,
+  };
+};
+const actionCreator = {
+  handleHideFooter,
+  handleHideHeader,
+  handleHideBackground,
+  handleHidePageButton,
+  handleHideMenuButton,
+  handleHideAudiobookButton,
+  handleHideAIButton,
+  handleHideScaleButton,
+  handleHidePDFConvertButton,
+  handleShowBorder,
+  handleSetting,
+  handleSettingMode,
+  handleBackgroundColor,
+};
+export default connect(
+  mapStateToProps,
+  actionCreator
+)(withTranslation()(SettingSwitch as any) as any);

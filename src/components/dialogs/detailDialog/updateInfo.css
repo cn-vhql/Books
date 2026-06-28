@@ -1,0 +1,591 @@
+.download-desk-title {
+  font-size: 18px;
+  font-weight: 500;
+  opacity: 1;
+  text-align: center;
+  width: 100%;
+  margin-top: 20px;
+}
+.download-desk-subtile {
+  font-size: 15px;
+  opacity: 0.6;
+  font-weight: 500;
+  text-align: center;
+  padding: 20px;
+  padding-top: 10px;
+  line-height: 17px;
+}
+.detail-dialog-shelf-location {
+  margin-top: 10px;
+  margin-left: 5%;
+  margin-right: 5%;
+  display: flex;
+  flex-wrap: wrap;
+}
+.detail-dialog-shelf-location .tag-list-item {
+  cursor: pointer;
+}
+.download-desk-feature-item {
+  font-size: 15px;
+  line-height: 23px;
+  font-weight: 500;
+  margin: 30px;
+  margin-top: 10px;
+  text-indent: 2rem;
+}
+.detail-cover {
+  max-width: 150px;
+  max-height: 230px;
+  margin: 10px;
+  z-index: 10;
+}
+.detail-cover-background-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: -1;
+  position: absolute;
+  top: 0;
+}
+.detail-cover-background {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  -webkit-filter: blur(50px);
+  -moz-filter: blur(50px);
+  -o-filter: blur(50px);
+  -ms-filter: blur(50px);
+  filter: blur(50px);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
+}
+.detail-cover-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 250px;
+  height: 250px;
+  margin-left: 50px;
+  margin-top: 20px;
+}
+.detail-dialog-book-info {
+  overflow-y: scroll;
+  height: 185px;
+  line-height: 1.25;
+  text-align: left;
+  overflow-x: hidden;
+  width: 100%;
+}
+.detail-dialog-book-info:hover::-webkit-scrollbar-thumb,
+.detail-dialog-book-info:active::-webkit-scrollbar-thumb,
+.detail-dialog-book-info:focus::-webkit-scrollbar-thumb {
+  display: none;
+}
+.detail-dialog-book-info::-webkit-scrollbar-thumb {
+  display: none;
+}
+.detail-dialog-book-title,
+.detail-dialog-book-author,
+.detail-dialog-book-desc {
+  font-size: 15px;
+  line-height: 18px;
+}
+.detail-dialog-book-title {
+  margin-bottom: 5px;
+  margin-top: 5px;
+  text-align: center;
+  padding-left: 30px;
+  padding-right: 30px;
+  font-size: 16px;
+  line-height: 18px;
+}
+.detail-sub-info {
+  display: flex;
+  justify-content: space-around;
+  width: 90%;
+  margin-left: 5%;
+  margin-top: 20px;
+}
+.detail-sub-title {
+  font-size: 12px;
+  opacity: 0.6;
+  margin-bottom: 3px;
+}
+.detail-dialog-book-author {
+  margin-bottom: 5px;
+  text-align: center;
+  opacity: 1;
+  line-height: 16px;
+}
+.detail-sub-content-container {
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.detail-sub-content {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.detail-dialog-book-publisher,
+.detail-dialog-book-size,
+.detail-dialog-book-page,
+.detail-dialog-book-added {
+  text-align: center;
+  line-height: 16px;
+  font-size: 13px;
+  max-width: 60px;
+  height: 60px;
+}
+
+.detail-dialog-book-divider {
+  height: 60px;
+  width: 0.5px;
+  margin-top: 5px;
+  opacity: 0.2;
+}
+.detail-dialog-book-detail {
+  /* width: 80%; */
+  margin-top: 5px;
+  font-size: 15px;
+  width: 90%;
+  margin-left: 5%;
+  text-align: justify;
+  hyphens: auto;
+}
+.detail-dialog-book-desc {
+  opacity: 0.6;
+  margin-left: 5%;
+  margin-top: 10px;
+}
+.detail-close-button {
+}
+.download-desk-container {
+  width: 346px;
+  height: 480px;
+  position: absolute;
+  left: calc(50vw - 173px);
+  top: calc(50vh - 240px);
+  z-index: 20;
+  animation: popup 0.1s ease-in-out 0s 1;
+  border-radius: 5px;
+}
+.tip-close-icon {
+  margin-top: 10px;
+  margin-right: 10px;
+}
+.download-desk-animation {
+  position: absolute;
+  left: 70px;
+  bottom: 10px;
+  z-index: -1;
+}
+.download-desk-title {
+  font-size: 18px;
+  font-weight: 500;
+  opacity: 1;
+  text-align: center;
+  width: 100%;
+  margin-top: 20px;
+}
+.download-desk-subtile {
+  font-size: 15px;
+  opacity: 0.6;
+  font-weight: 500;
+  text-align: center;
+  padding: 20px;
+  padding-top: 10px;
+  line-height: 17px;
+}
+.download-desk-feature-item {
+  font-size: 15px;
+  line-height: 23px;
+  font-weight: 500;
+  margin: 30px;
+  margin-top: 10px;
+  text-indent: 2rem;
+}
+.download-desk-button {
+  width: 100px;
+  height: 32px;
+  opacity: 1;
+  line-height: 32px;
+  text-align: center;
+  margin: 12px 175px;
+  position: absolute;
+  cursor: pointer;
+  z-index: 25;
+  border-radius: 16px;
+  font-size: 13px;
+}
+.detail-dialog-server-container {
+  width: min(1040px, calc(100vw - 48px));
+  height: min(760px, calc(100vh - 48px));
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.detail-dialog-server-shell {
+  width: 100%;
+  min-height: 100%;
+  display: block;
+}
+.detail-dialog-server-head {
+  padding: 24px 28px 18px;
+}
+.detail-dialog-server-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+.detail-dialog-server-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.detail-dialog-server-titles {
+  min-width: 0;
+}
+.detail-dialog-server-title {
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.detail-dialog-server-author {
+  font-size: 15px;
+  opacity: 0.72;
+}
+.detail-dialog-server-close,
+.detail-dialog-server-primary,
+.detail-dialog-server-secondary,
+.detail-dialog-server-tab {
+  cursor: pointer;
+  border: none;
+}
+.detail-dialog-server-header-button {
+  height: var(--ui-btn-height-sm);
+  padding: var(--ui-btn-padding);
+  border-radius: var(--ui-btn-radius);
+  font-size: var(--ui-btn-font-size);
+  font-weight: var(--ui-btn-font-weight);
+  background: var(--ui-btn-secondary-bg);
+  border: 1px solid var(--ui-btn-secondary-border);
+  color: var(--ui-btn-secondary-text);
+  box-sizing: border-box;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
+}
+.detail-dialog-server-header-button.active {
+  background: rgba(127, 119, 106, 0.16);
+}
+.detail-dialog-server-close-icon {
+  width: var(--ui-btn-height-sm);
+  height: var(--ui-btn-height-sm);
+  padding: 0;
+  border-radius: var(--ui-btn-radius);
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ui-btn-secondary-bg);
+  border: 1px solid var(--ui-btn-secondary-border);
+  color: var(--ui-btn-secondary-text);
+  box-sizing: border-box;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
+}
+.detail-dialog-server-hero {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.detail-dialog-server-coverbox {
+  display: flex;
+  justify-content: center;
+}
+.detail-dialog-server-cover,
+.detail-dialog-server-cover-fallback {
+  width: 190px;
+  height: 270px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.12);
+}
+.detail-dialog-server-cover {
+  object-fit: cover;
+}
+.detail-dialog-server-summary {
+  min-width: 0;
+}
+.detail-dialog-server-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.detail-dialog-server-meta-item {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(127, 119, 106, 0.05);
+}
+.detail-dialog-server-meta-item span {
+  display: block;
+  font-size: 12px;
+  opacity: 0.62;
+  margin-bottom: 6px;
+}
+.detail-dialog-server-meta-item strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.detail-dialog-server-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+}
+.detail-dialog-server-primary,
+.detail-dialog-server-secondary {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: var(--ui-btn-font-weight);
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
+}
+.detail-dialog-server-primary {
+  color: var(--ui-btn-primary-text);
+  background: var(--ui-btn-primary-bg);
+  box-shadow: var(--ui-btn-shadow);
+}
+.detail-dialog-server-secondary {
+  border: 1px solid var(--ui-btn-secondary-border);
+  background: var(--ui-btn-secondary-bg);
+  color: var(--ui-btn-secondary-text);
+}
+.detail-dialog-server-header-button:hover,
+.detail-dialog-server-close-icon:hover,
+.detail-dialog-server-primary:hover,
+.detail-dialog-server-secondary:hover {
+  transform: translateY(-1px);
+}
+.detail-dialog-server-header-button:hover,
+.detail-dialog-server-close-icon:hover,
+.detail-dialog-server-secondary:hover {
+  box-shadow: 0 8px 16px rgba(76, 69, 61, 0.08);
+}
+.detail-dialog-server-primary:hover {
+  box-shadow: var(--ui-btn-shadow-hover);
+}
+.detail-dialog-server-desc {
+  margin-top: 18px;
+  font-size: 14px;
+  line-height: 1.8;
+  max-height: none;
+  overflow: visible;
+}
+.detail-dialog-server-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 28px 14px;
+}
+.detail-dialog-server-tab {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(127, 119, 106, 0.08);
+  color: rgba(91, 77, 65, 0.82);
+  border: 1px solid transparent;
+  opacity: 1;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.detail-dialog-server-tab.active {
+  color: #4a3d31;
+  background: rgba(154, 134, 112, 0.2);
+  border-color: rgba(135, 116, 96, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 8px 18px rgba(88, 74, 61, 0.08);
+}
+.detail-dialog-server-body {
+  padding: 0 28px 28px;
+}
+.detail-dialog-server-overview,
+.detail-dialog-server-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.detail-dialog-server-section {
+  padding: 18px;
+  border-radius: 12px;
+  background: rgba(127, 119, 106, 0.04);
+}
+.detail-dialog-server-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+.detail-dialog-server-section-content {
+  font-size: 14px;
+  line-height: 1.8;
+}
+.detail-dialog-server-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.detail-dialog-server-input,
+.detail-dialog-server-textarea {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(127, 119, 106, 0.16);
+  box-sizing: border-box;
+  font-size: 14px;
+  padding: 10px 12px;
+  background: transparent;
+}
+.detail-dialog-server-textarea {
+  min-height: 120px;
+  margin-top: 12px;
+  resize: vertical;
+}
+.detail-dialog-server-inline-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+.detail-dialog-server-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+.detail-dialog-server-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(127, 119, 106, 0.05);
+}
+.detail-dialog-server-result-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.detail-dialog-server-result-meta {
+  font-size: 12px;
+  opacity: 0.7;
+}
+.detail-dialog-server-result-extra {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.68;
+}
+.detail-dialog-server-result-desc {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  opacity: 0.82;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.detail-dialog-server-note-card {
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: rgba(127, 119, 106, 0.04);
+}
+.detail-dialog-server-note-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  opacity: 0.68;
+  margin-bottom: 10px;
+}
+.detail-dialog-server-note-quote {
+  font-size: 14px;
+  line-height: 1.7;
+  padding-left: 12px;
+  border-left: 3px solid rgba(127, 119, 106, 0.2);
+}
+.detail-dialog-server-note-text {
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.detail-dialog-server-empty {
+  padding: 32px 12px;
+  text-align: center;
+  font-size: 14px;
+  opacity: 0.65;
+}
+@media (max-width: 900px) {
+  .detail-dialog-server-container {
+    width: calc(100vw - 24px);
+    height: calc(100vh - 24px);
+  }
+  .detail-dialog-server-hero {
+    grid-template-columns: 1fr;
+  }
+  .detail-dialog-server-coverbox {
+    justify-content: flex-start;
+  }
+  .detail-dialog-server-meta-grid,
+  .detail-dialog-server-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .detail-dialog-server-head,
+  .detail-dialog-server-tabs,
+  .detail-dialog-server-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .detail-dialog-server-topline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .detail-dialog-server-top-actions {
+    justify-content: flex-end;
+  }
+  .detail-dialog-server-meta-grid,
+  .detail-dialog-server-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .detail-dialog-server-actions,
+  .detail-dialog-server-inline-actions {
+    flex-direction: column;
+  }
+}

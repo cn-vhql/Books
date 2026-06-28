@@ -1,0 +1,962 @@
+import React from "react";
+import "./header.css";
+import SearchBox from "../../components/searchBox";
+import ImportLocal from "../../components/importLocal";
+import { HeaderProps, HeaderState } from "./interface";
+import {
+  ConfigService,
+  KookitConfig,
+  KOReaderUtil,
+  TokenService,
+} from "../../assets/lib/kookit-extra-browser.min";
+import UpdateInfo from "../../components/dialogs/updateDialog";
+import { restoreFromConfigJson } from "../../utils/file/restore";
+import { backupToConfigJson, generateSnapshot } from "../../utils/file/backup";
+import { isElectron } from "react-device-detect";
+import {
+  getCloudConfig,
+  getLastSyncTimeFromConfigJson,
+  removeCloudConfig,
+  upgradeConfig,
+  upgradeStorage,
+} from "../../utils/file/common";
+import toast from "react-hot-toast";
+import { Trans } from "react-i18next";
+import { SyncHelper } from "../../assets/lib/kookit-extra-browser.min";
+import ConfigUtil from "../../utils/file/configUtil";
+import DatabaseService from "../../utils/storage/databaseService";
+import CoverUtil from "../../utils/file/coverUtil";
+import BookUtil from "../../utils/file/bookUtil";
+import {
+  addChatBox,
+  checkBrokenDatabase,
+  checkMissingBook,
+  generateSyncRecord,
+  getBookPartialMd5,
+  getChatLocale,
+  getTaskStats,
+  getWebsiteUrl,
+  removeChatBox,
+  resetKoodoSync,
+  showTaskProgress,
+  throttle,
+  vexComfirmAsync,
+} from "../../utils/common";
+import { driveList } from "../../constants/driveList";
+import SupportDialog from "../../components/dialogs/supportDialog";
+import SyncService from "../../utils/storage/syncService";
+import { LocalFileManager } from "../../utils/file/localFile";
+import ServerLibrary from "../../utils/storage/serverLibrary";
+import packageJson from "../../../package.json";
+import { updateUserConfig } from "../../utils/request/user";
+import i18n from "../../i18n";
+import { syncNativeThemeSource } from "../../utils/reader/launchUtil";
+import ViewMode from "../../components/viewMode";
+declare var window: any;
+
+class Header extends React.Component<HeaderProps, HeaderState> {
+  timer: any;
+  scheduledSyncTimer: any;
+  private isSyncing: boolean = false;
+  private resizeHandler: (() => void) | null = null;
+  constructor(props: HeaderProps) {
+    super(props);
+
+    this.state = {
+      isOnlyLocal: false,
+      language: ConfigService.getReaderConfig("lang"),
+      isNewVersion: false,
+      width: document.body.clientWidth,
+      isDataChange: false,
+      isHidePro: false,
+      isSync: false,
+    };
+  }
+  async componentDidMount() {
+    if (this.props.isServerMode) {
+      this.props.handleFetchAuthed();
+      return;
+    }
+    if (isElectron) {
+      try {
+        await generateSnapshot();
+      } catch (error) {
+        console.error("Failed to generate snapshot:", error);
+      }
+    }
+    this.props.handleFetchAuthed();
+    this.props.handleFetchDefaultSyncOption();
+    this.props.handleFetchDataSourceList();
+    if (isElectron) {
+      const fs = window.require("fs");
+      const path = window.require("path");
+      const { ipcRenderer } = window.require("electron");
+      const dirPath = ipcRenderer.sendSync("user-data", "ping");
+      if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(path.join(dirPath, "data", "book"), { recursive: true });
+      }
+
+      if (
+        ConfigService.getReaderConfig("storageLocation") &&
+        !ConfigService.getItem("storageLocation")
+      ) {
+        ConfigService.setItem(
+          "storageLocation",
+          ConfigService.getReaderConfig("storageLocation")
+        );
+      }
+      if (ConfigService.getReaderConfig("isHidePro") === "yes") {
+        this.setState({ isHidePro: true });
+      }
+
+      //Check for data update
+      //upgrade data from old version
+      let res1 = await upgradeStorage(this.handleFinishUpgrade);
+      let res2 = upgradeConfig();
+      if (!res1 || !res2) {
+        console.error("upgrade failed");
+      }
+
+      //Detect data modification
+      let lastSyncTime = getLastSyncTimeFromConfigJson();
+      if (
+        ConfigService.getItem("lastSyncTime") &&
+        lastSyncTime > parseInt(ConfigService.getItem("lastSyncTime") || "0")
+      ) {
+        this.setState({ isDataChange: true });
+      }
+
+      ipcRenderer.on("reading-finished", async (event: any, config: any) => {
+        this.handleFinishReading();
+      });
+      ipcRenderer.on(
+        "open-book-from-link",
+        async (_event: any, config: any) => {
+          const book = await DatabaseService.getRecord(config.bookKey, "books");
+          if (book) {
+            BookUtil.redirectBook(book);
+          }
+        }
+      );
+      ipcRenderer.on(
+        "open-note-from-link",
+        async (_event: any, config: any) => {
+          const note = await DatabaseService.getRecord(config.noteKey, "notes");
+          if (!note) return;
+          const book = await DatabaseService.getRecord(note.bookKey, "books");
+          if (!book) return;
+          let bookLocation: any = {};
+          try {
+            bookLocation = JSON.parse(note.cfi) || {};
+          } catch (error) {
+            bookLocation.cfi = note.cfi;
+            bookLocation.chapterTitle = note.chapter;
+          }
+          if (bookLocation.fingerprint) {
+            bookLocation.chapterDocIndex = bookLocation.page - 1 + "";
+            bookLocation.chapterHref = "title" + (bookLocation.page - 1);
+          }
+          ConfigService.setObjectConfig(
+            note.bookKey,
+            bookLocation,
+            "recordLocation"
+          );
+          BookUtil.redirectBook(book);
+        }
+      );
+    } else {
+      upgradeConfig();
+      if (!ServerLibrary.isEnabled()) {
+        const status = await LocalFileManager.getPermissionStatus();
+        if (
+          !ConfigService.getReaderConfig("isUseLocal") &&
+          LocalFileManager.isSupported()
+        ) {
+          this.props.handleLocalFileDialog(true);
+        } else if (
+          ConfigService.getReaderConfig("isUseLocal") === "yes" &&
+          !status.directoryName
+        ) {
+          this.props.handleLocalFileDialog(true);
+        } else if (
+          ConfigService.getReaderConfig("isUseLocal") === "yes" &&
+          (status.needsReauthorization || !status.hasAccess)
+        ) {
+          this.props.handleLocalFileDialog(true);
+        }
+      }
+    }
+    this.resizeHandler = throttle(() => {
+      this.setState({ width: document.body.clientWidth });
+    });
+    window.addEventListener("resize", this.resizeHandler);
+    this.props.handleCloudSyncFunc(this.handleCloudSync);
+    document.addEventListener("visibilitychange", async (event) => {
+      if (
+        document.visibilityState === "visible" &&
+        !isElectron &&
+        ConfigService.getReaderConfig("isFinishWebReading") === "yes"
+      ) {
+        await this.handleFinishReading();
+        // ConfigService.setReaderConfig("isFinishWebReading", "no");
+      }
+    });
+    let willAutoSync =
+      ConfigService.getReaderConfig("isDisableAutoSync") !== "yes" &&
+      ConfigService.getItem("defaultSyncOption");
+    if (!willAutoSync) {
+      this.handleOpenLastReadBook();
+    }
+    this.startScheduledSync();
+  }
+  componentWillUnmount() {
+    if (this.scheduledSyncTimer) {
+      clearInterval(this.scheduledSyncTimer);
+      this.scheduledSyncTimer = null;
+    }
+    if (this.resizeHandler) {
+      window.removeEventListener("resize", this.resizeHandler);
+      this.resizeHandler = null;
+    }
+  }
+  startScheduledSync = () => {
+    if (this.scheduledSyncTimer) {
+      clearInterval(this.scheduledSyncTimer);
+      this.scheduledSyncTimer = null;
+    }
+    const intervalMinutes = parseInt(
+      ConfigService.getReaderConfig("scheduledSyncInterval") || "0"
+    );
+    if (!intervalMinutes || intervalMinutes <= 0) {
+      return;
+    }
+    const intervalMs = intervalMinutes * 60 * 1000;
+    this.scheduledSyncTimer = setInterval(async () => {
+      const currentInterval = parseInt(
+        ConfigService.getReaderConfig("scheduledSyncInterval") || "0"
+      );
+      if (!currentInterval || currentInterval <= 0) {
+        clearInterval(this.scheduledSyncTimer);
+        this.scheduledSyncTimer = null;
+        return;
+      }
+      const defaultSyncOption = ConfigService.getItem("defaultSyncOption");
+      if (
+        !defaultSyncOption ||
+        ConfigService.getReaderConfig("isDisableAutoSync") === "yes"
+      ) {
+        return;
+      }
+      if (!this.state.isSync && !this.isSyncing) {
+        const userInfo = await this.props.handleFetchUserInfo();
+        await this.handleCloudSync(userInfo);
+      }
+    }, intervalMs);
+  };
+  async UNSAFE_componentWillReceiveProps(
+    nextProps: Readonly<HeaderProps>,
+    _nextContext: any
+  ) {
+    if (nextProps.isServerMode) {
+      return;
+    }
+    if (nextProps.isAuthed && nextProps.isAuthed !== this.props.isAuthed) {
+      if (isElectron) {
+      } else {
+        addChatBox();
+      }
+      if (ConfigService.getReaderConfig("isProUpgraded") !== "yes") {
+        try {
+          ConfigService.setReaderConfig("isProUpgraded", "yes");
+          await generateSyncRecord();
+        } catch (error) {
+          console.error(error);
+        }
+      }
+      let userInfo = await this.props.handleFetchUserInfo();
+      if (
+        ConfigService.getReaderConfig("isDisableAutoSync") !== "yes" &&
+        ConfigService.getItem("defaultSyncOption")
+      ) {
+        this.setState({ isSync: true });
+        await this.handleCloudSync(userInfo);
+        await this.handleOpenLastReadBook();
+      }
+    }
+    if (!nextProps.isAuthed && nextProps.isAuthed !== this.props.isAuthed) {
+      if (isElectron) {
+      } else {
+        removeChatBox();
+      }
+    }
+  }
+  handleOpenLastReadBook = async () => {
+    let filePath = "";
+    //open book when app start
+    if (isElectron) {
+      const { ipcRenderer } = window.require("electron");
+      filePath = ipcRenderer.sendSync("check-file-data");
+    }
+    if (
+      ConfigService.getReaderConfig("isOpenBook") === "yes" &&
+      !this.props.currentBook.key &&
+      !filePath
+    ) {
+      let lastReadBookKey = ConfigService.getAllListConfig("recentBooks")[0];
+      if (lastReadBookKey) {
+        let fullBook = await DatabaseService.getRecord(
+          lastReadBookKey,
+          "books"
+        );
+        if (fullBook) {
+          this.props.handleReadingBook(fullBook);
+          BookUtil.redirectBook(fullBook);
+        }
+      }
+    }
+  };
+  handleFinishReading = async () => {
+    if (
+      ConfigService.getReaderConfig("isDisableAutoSync") !== "yes" &&
+      ConfigService.getItem("defaultSyncOption") &&
+      !this.state.isSync
+    ) {
+      ConfigService.setItem("isFinshReading", "yes");
+      let userInfo = await this.props.handleFetchUserInfo();
+      this.setState({ isSync: true }, async () => {
+        await this.handleCloudSync(userInfo);
+        ConfigService.setItem("isFinshReading", "no");
+      });
+    }
+  };
+  handleFinishUpgrade = () => {
+    setTimeout(() => {
+      if (this.props.mode === "home") {
+        this.props.history.push("/manager/home");
+      }
+    }, 2000);
+  };
+
+  syncFromLocation = async () => {
+    let result = await restoreFromConfigJson();
+    if (result) {
+      this.setState({ isDataChange: false });
+      //Check for data update
+      let lastSyncTime = getLastSyncTimeFromConfigJson();
+      if (ConfigService.getItem("lastSyncTime") && lastSyncTime) {
+        ConfigService.setItem("lastSyncTime", lastSyncTime + "");
+      } else {
+        let timestamp = new Date().getTime().toString();
+        ConfigService.setItem("lastSyncTime", timestamp);
+      }
+    }
+    if (!result) {
+      toast.error(this.props.t("Sync failed"));
+    } else {
+      toast.success(
+        this.props.t("Synchronisation successful") +
+          " (" +
+          this.props.t("Local") +
+          ")"
+      );
+      toast.success(
+        this.props.t(
+          "Your data has been imported from your local folder, Upgrade to pro to get more advanced features"
+        ),
+        {
+          duration: 4000,
+        }
+      );
+    }
+  };
+  handleLocalSync = async () => {
+    let lastSyncTime = getLastSyncTimeFromConfigJson();
+    if (!lastSyncTime) {
+      await this.syncToLocation();
+    } else {
+      if (
+        ConfigService.getItem("lastSyncTime") &&
+        lastSyncTime <= parseInt(ConfigService.getItem("lastSyncTime")!)
+      ) {
+        await this.syncToLocation();
+      } else {
+        await this.syncFromLocation();
+      }
+    }
+
+    this.setState({ isSync: false });
+  };
+  handleKOReaderSync = async () => {
+    if (ConfigService.getReaderConfig("isEnableKoReaderSync") !== "yes") {
+      return;
+    }
+
+    toast.loading(this.props.t("Start syncing") + " (KOReader)", {
+      id: "koreader-sync",
+      position: "bottom-center",
+    });
+    try {
+      const koReaderUtil = new KOReaderUtil(
+        ConfigService,
+        TokenService,
+        DatabaseService
+      );
+      const summary =
+        await koReaderUtil.syncKOReaderProgress(getBookPartialMd5);
+      if (summary.pulledBooks > 0 || summary.pushedBooks > 0) {
+        this.props.handleFetchBooks();
+      }
+      toast.success(
+        this.props.t("Synchronisation successful") + " (KOReader)",
+        {
+          id: "koreader-sync",
+        }
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        this.props.t("Sync failed") +
+          " (KOReader): " +
+          (error instanceof Error ? error.message : String(error)),
+        {
+          id: "koreader-sync",
+          duration: 6000,
+        }
+      );
+    }
+  };
+  beforeSync = async (userInfo: any) => {
+    if (!ConfigService.getItem("defaultSyncOption")) {
+      toast.error(this.props.t("Please add data source in the setting"));
+      return false;
+    }
+    if (
+      ConfigService.getReaderConfig("isEnableKoodoSync") === "yes" &&
+      userInfo &&
+      userInfo.default_sync_option &&
+      userInfo.default_sync_option !== this.props.defaultSyncOption
+    ) {
+      toast.error(
+        this.props.t(
+          "The default sync options in the local and cloud are inconsistent, please set the local default sync option to "
+        ) +
+          this.props.t(
+            driveList.find(
+              (item) => item.value === userInfo.default_sync_option
+            )?.label || ""
+          ),
+        {
+          duration: 4000,
+        }
+      );
+      return false;
+    }
+    let config = await getCloudConfig(
+      ConfigService.getItem("defaultSyncOption") || ""
+    );
+    if (Object.keys(config).length === 0) {
+      toast.error(this.props.t("Cannot get sync config"));
+      return false;
+    }
+    if (
+      ConfigService.getItem("defaultSyncOption") === "google" &&
+      !config.version
+    ) {
+      let targetDrive = "google";
+      await TokenService.setToken(targetDrive + "_token", "");
+      SyncService.removeSyncUtil(targetDrive);
+      removeCloudConfig(targetDrive);
+      if (isElectron) {
+        const { ipcRenderer } = window.require("electron");
+        await ipcRenderer.invoke("cloud-close", {
+          service: targetDrive,
+        });
+      }
+      ConfigService.deleteListConfig(targetDrive, "dataSourceList");
+      this.props.handleFetchDataSourceList();
+      if (targetDrive === ConfigService.getItem("defaultSyncOption")) {
+        ConfigService.removeItem("defaultSyncOption");
+        this.props.handleFetchDefaultSyncOption();
+      }
+      if (ConfigService.getReaderConfig("isEnableKoodoSync") === "yes") {
+        resetKoodoSync();
+      }
+      toast(
+        this.props.t(
+          "In order to let you directly manage your data in Google Drive, we have deprecated the old Google Drive token. Please reauthorize Google Drive in the settings. Your new data will be stored in the root directory of your Google Drive, and you can manage it directly in the Google Drive web interface."
+        ),
+        { duration: 4000 }
+      );
+      return false;
+    }
+    await checkMissingBook();
+    let checkResult = await checkBrokenDatabase();
+    if (checkResult) {
+      toast.error(
+        this.props.t(
+          "Broken data detected, please click the setting button to reset the sync records"
+        )
+      );
+      return false;
+    }
+    if (ConfigService.getReaderConfig("isEnableKoodoSync") !== "yes") {
+      toast.loading(
+        this.props.t("Start syncing") +
+          " (" +
+          this.props.t(
+            driveList.find(
+              (item) =>
+                item.value === ConfigService.getItem("defaultSyncOption")
+            )?.label || ""
+          ) +
+          ")",
+        { id: "syncing", position: "bottom-center" }
+      );
+    }
+
+    return true;
+  };
+  getCompareResult = async () => {
+    let localSyncRecords = ConfigService.getAllSyncRecord();
+    let cloudSyncRecords = await ConfigUtil.getCloudConfig("sync");
+    return await SyncHelper.compareAll(
+      localSyncRecords,
+      cloudSyncRecords,
+      ConfigService,
+      TokenService,
+      ConfigUtil
+    );
+  };
+  handleSyncStateChange = (isSyncing: boolean) => {
+    this.setState({ isSync: isSyncing });
+  };
+  handleCloudSync = async (userInfo: any): Promise<false | undefined> => {
+    if (this.isSyncing) {
+      console.info("Sync already in progress, skipping...");
+      return false;
+    }
+    this.isSyncing = true;
+
+    try {
+      this.timer = await showTaskProgress(this.handleSyncStateChange);
+      if (!this.timer) {
+        this.setState({ isSync: false });
+        this.handleKOReaderSync();
+        return false;
+      }
+
+      let res = await this.beforeSync(userInfo);
+      if (!res) {
+        clearInterval(this.timer);
+        this.setState({ isSync: false });
+        this.handleKOReaderSync();
+        return false;
+      }
+      let compareResult = await this.getCompareResult();
+      await this.handleSync(compareResult);
+      clearInterval(this.timer);
+      this.setState({ isSync: false });
+      this.handleKOReaderSync();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        this.props.t("Sync failed") +
+          ": " +
+          (error instanceof Error ? error.message : String(error))
+      );
+      clearInterval(this.timer);
+      this.setState({ isSync: false });
+      this.handleKOReaderSync();
+      return false;
+    } finally {
+      this.isSyncing = false;
+    }
+    setTimeout(() => {
+      toast.dismiss("syncing");
+    }, 3000);
+    return;
+  };
+  handleSuccess = async () => {
+    if (ConfigService.getItem("isFinshReading") !== "yes" || !isElectron) {
+      this.props.handleFetchBooks();
+    }
+
+    this.props.handleFetchBookmarks();
+    this.props.handleFetchNotes();
+
+    toast.success(this.props.t("Synchronisation successful"), {
+      id: "syncing",
+    });
+
+    if (
+      ConfigService.getItem("defaultSyncOption") === "adrive" &&
+      ConfigService.getReaderConfig("hasShowAliyunWarning") !== "yes"
+    ) {
+      ConfigService.setReaderConfig("hasShowAliyunWarning", "yes");
+      toast.success(
+        this.props.t(
+          "We have bypassed the synchronization of book cover for Aliyun Drive, covers will be downloaded automatically when you open the book next time."
+        ),
+        {
+          duration: 4000,
+        }
+      );
+    }
+    if (ConfigService.getReaderConfig("isEnableKoodoSync") === "yes") {
+      ConfigUtil.updateSyncData();
+    }
+    //when book is empty, need to refresh the book list
+    setTimeout(async () => {
+      if (this.props.mode === "home") {
+        this.props.history.push("/manager/home");
+        if (
+          ConfigService.getReaderConfig("isFirstSync") !== "no" &&
+          ConfigService.getReaderConfig("isEnableKoodoSync") !== "yes"
+        ) {
+          ConfigService.setReaderConfig("isFirstSync", "no");
+          let config = await getCloudConfig(
+            ConfigService.getItem("defaultSyncOption") || ""
+          );
+          if (
+            config.url &&
+            (config.url.includes("192.168.") ||
+              config.url.includes("127.0.0.1") ||
+              config.url.includes("localhost"))
+          ) {
+            return;
+          }
+          if (
+            this.props.userInfo &&
+            this.props.userInfo.time_created &&
+            this.props.userInfo.time_created < 1769875200
+          ) {
+            return;
+          }
+          let result = await vexComfirmAsync(
+            `<h3>${this.props.t("Enable Koodo Sync")}</h3><p>${
+              this.props.t(
+                "To enjoy a faster and seamless synchronization experience."
+              ) +
+              " " +
+              this.props.t(
+                "Your reading progress, notes, highlights, bookmarks, and other data will be stored and synced through our cloud service. Your books and covers will still be synced by your added data sources. All your data will be encrypted and stored securely in our cloud. You can disable this feature anytime in the settings."
+              )
+            }</p>`
+          );
+          if (result) {
+            ConfigService.setReaderConfig("isEnableKoodoSync", "yes");
+            let encryptedToken = await TokenService.getToken(
+              this.props.defaultSyncOption + "_token"
+            );
+            await updateUserConfig({
+              is_enable_koodo_sync: "yes",
+              default_sync_option: this.props.defaultSyncOption,
+              default_sync_token: encryptedToken || "",
+            });
+            let userInfo = await this.props.handleFetchUserInfo();
+            toast.success(this.props.t("Setup successful"));
+            this.handleCloudSync(userInfo);
+          }
+        }
+      }
+    }, 1000);
+  };
+  handleSync = async (compareResult) => {
+    try {
+      let tasks = await SyncHelper.startSync(
+        compareResult,
+        ConfigService,
+        DatabaseService,
+        ConfigUtil,
+        BookUtil,
+        CoverUtil
+      );
+      await SyncHelper.runTasksWithLimit(
+        tasks,
+        99,
+        ConfigService.getItem("defaultSyncOption")
+      );
+
+      clearInterval(this.timer);
+      this.setState({ isSync: false });
+      let stats = await getTaskStats();
+      if (stats.hasFailedTasks) {
+        toast.error(
+          this.props.t(
+            "Tasks failed after multiple retries, please check the network connection or reauthorize the data source in the settings"
+          ),
+          {
+            id: "syncing",
+            duration: 6000,
+          }
+        );
+        return;
+      }
+      toast.loading(this.props.t("Almost finished"), {
+        id: "syncing",
+        position: "bottom-center",
+      });
+      await this.handleSuccess();
+    } catch (error) {
+      console.error(error);
+      clearInterval(this.timer);
+      this.setState({ isSync: false });
+      toast.error(
+        this.props.t("Sync failed") +
+          ": " +
+          (error instanceof Error ? error.message : String(error))
+      );
+
+      return;
+    }
+  };
+  syncToLocation = async () => {
+    let timestamp = new Date().getTime().toString();
+    ConfigService.setItem("lastSyncTime", timestamp);
+    await backupToConfigJson();
+    toast.success(
+      this.props.t("Synchronisation successful") +
+        " (" +
+        this.props.t("Local") +
+        ")"
+    );
+    toast.success(
+      this.props.t(
+        "Your data has been exported to your local folder, learn how to sync your data to your other devices by visiting our documentation, Upgrade to pro to get more advanced features"
+      ),
+      {
+        duration: 4000,
+      }
+    );
+  };
+
+  handleToggleTheme = () => {
+    const currentSkin = ConfigService.getReaderConfig("appSkin") || "system";
+    const nextSkin = currentSkin === "night" ? "light" : "night";
+    ConfigService.setReaderConfig("appSkin", nextSkin);
+    ConfigService.setReaderConfig(
+      "backgroundColor",
+      nextSkin === "night" ? "rgba(44,47,49,1)" : "rgba(255,255,255,1)"
+    );
+    ConfigService.setReaderConfig(
+      "textColor",
+      nextSkin === "night" ? "rgba(255,255,255,1)" : "rgba(0,0,0,1)"
+    );
+    syncNativeThemeSource(nextSkin);
+    const themeLink = document.querySelector(
+      'link[href$="default.css"], link[href$="dark.css"]'
+    ) as HTMLLinkElement | null;
+    if (themeLink) {
+      themeLink.href =
+        nextSkin === "night"
+          ? "./assets/styles/dark.css"
+          : "./assets/styles/default.css";
+    }
+    this.forceUpdate();
+  };
+
+  render() {
+    const isNightMode =
+      ConfigService.getReaderConfig("appSkin") === "night" ||
+      (ConfigService.getReaderConfig("appSkin") === "system" &&
+        ConfigService.getReaderConfig("isOSNight") === "yes");
+    return (
+      <div
+        className="header"
+        style={this.props.isCollapsed ? { marginLeft: "40px" } : {}}
+      >
+        {isElectron && this.props.isAuthed && (
+          <div
+            className="header-chat-widget"
+            onClick={() => {
+              window.require("electron").ipcRenderer.invoke("new-chat", {
+                url:
+                  getWebsiteUrl() +
+                  (ConfigService.getReaderConfig("lang").startsWith("zh")
+                    ? "/zh/faq"
+                    : "/en/faq") +
+                  "?referer=app&version=" +
+                  packageJson.version +
+                  "&client=desktop",
+                locale: getChatLocale(),
+              });
+            }}
+          >
+            <img
+              src={require("../../assets/images/chat-widget.png")}
+              alt="logo"
+              className="login-mobile-qr"
+              style={{
+                width: "100%",
+                height: "100%",
+              }}
+            />
+          </div>
+        )}
+        <div
+          className="header-search-container"
+          style={this.props.isCollapsed ? { width: "369px" } : {}}
+        >
+          <SearchBox />
+        </div>
+        <div
+          className="setting-icon-parrent"
+          style={this.props.isCollapsed ? { marginLeft: "430px" } : {}}
+        >
+          <div
+            className="setting-icon-container header-theme-toggle"
+            onClick={this.handleToggleTheme}
+            style={{ marginTop: "2px" }}
+          >
+            <span
+              data-tooltip-id="my-tooltip"
+              data-tooltip-content={isNightMode ? "切换到白天模式" : "切换到黑夜模式"}
+              data-tooltip-place="left"
+            >
+              <span
+                className="header-theme-symbol"
+                aria-hidden="true"
+                style={{
+                  color: isNightMode
+                    ? "rgba(247, 241, 228, 0.92)"
+                    : "rgba(66, 58, 51, 0.92)",
+                }}
+              >
+                {isNightMode ? "☀" : "☾"}
+              </span>
+            </span>
+          </div>
+          <div
+            className="setting-icon-container"
+            onClick={() => {
+              this.props.handleSortDisplay(!this.props.isSortDisplay);
+            }}
+            onMouseLeave={() => {
+              this.props.handleSortDisplay(false);
+            }}
+            style={{ top: "18px" }}
+          >
+            <span
+              data-tooltip-id="my-tooltip"
+              data-tooltip-content={this.props.t("Sort by")}
+              data-tooltip-place="left"
+            >
+              <span className="icon-sort-desc header-sort-icon"></span>
+            </span>
+          </div>
+          <div
+            className="setting-icon-container"
+            onClick={() => {
+              this.props.handleSetting(true);
+              this.props.handleAbout(false);
+            }}
+            onMouseLeave={() => {
+              this.props.handleAbout(false);
+            }}
+            style={{ marginTop: "2px" }}
+          >
+            <span
+              data-tooltip-id="my-tooltip"
+              data-tooltip-content="设置"
+              data-tooltip-place="left"
+            >
+              <span
+                className="icon-setting setting-icon"
+                style={{ fontSize: "25px" }}
+              ></span>
+            </span>
+          </div>
+          {this.props.isServerMode && <ViewMode />}
+          {!this.props.isServerMode && (
+            <div
+              className="setting-icon-container"
+              onClick={() => {
+                this.props.handleBackupDialog(true);
+              }}
+              onMouseLeave={() => {
+                this.props.handleSortDisplay(false);
+              }}
+              style={{ marginTop: "1px" }}
+            >
+              <span
+                data-tooltip-id="my-tooltip"
+                data-tooltip-content={this.props.t("Backup")}
+                data-tooltip-place="left"
+              >
+                <span className="icon-archive header-archive-icon"></span>
+              </span>
+            </div>
+          )}
+
+          {!this.props.isServerMode && (
+            <div
+              className="setting-icon-container"
+              onClick={async () => {
+                if (!isElectron && !this.props.isAuthed) {
+                  toast(
+                    this.props.t("Please upgrade to Pro to use this feature")
+                  );
+                  this.props.handleSetting(true);
+                  this.props.handleSettingMode("account");
+                  return;
+                }
+                this.setState({ isSync: true });
+                if (this.props.isAuthed) {
+                  let userInfo = await this.props.handleFetchUserInfo();
+                  await this.handleCloudSync(userInfo);
+                } else {
+                  await this.handleLocalSync();
+                  this.handleKOReaderSync();
+                }
+              }}
+              style={{ marginTop: "2px" }}
+            >
+              <span
+                data-tooltip-id="my-tooltip"
+                data-tooltip-content={this.props.t("Sync")}
+                data-tooltip-place="left"
+              >
+                <span
+                  className={
+                    "icon-sync setting-icon" +
+                    (this.state.isSync ? " icon-rotate" : "")
+                  }
+                  style={
+                    this.state.isDataChange
+                      ? { color: "rgb(35, 170, 242)", fontSize: "25px" }
+                      : { fontSize: "25px" }
+                  }
+                ></span>
+              </span>
+            </div>
+          )}
+        </div>
+
+        {KookitConfig.CloudMode !== "production" ? (
+          <div className="header-report-container" style={{ right: "300px" }}>
+            <span
+              style={{
+                color: "red",
+                opacity: 1,
+                fontWeight: "bold",
+              }}
+            >
+              <Trans>TEST</Trans>
+              <span> </span>
+            </span>
+          </div>
+        ) : null}
+
+        <ImportLocal
+          {...({
+            handleDrag: this.props.handleDrag,
+          } as any)}
+        />
+        {!this.props.isServerMode && <SupportDialog />}
+        {!this.props.isServerMode && <UpdateInfo />}
+      </div>
+    );
+  }
+}
+
+export default Header;

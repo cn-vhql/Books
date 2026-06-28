@@ -1,0 +1,37 @@
+import { connect } from "react-redux";
+import { stateType } from "../../store";
+import Background from "./component";
+import {
+  handleCurrentChapter,
+  handleCurrentChapterIndex,
+  handleJumpPosition,
+} from "../../store/actions";
+import { withTranslation } from "react-i18next";
+const mapStateToProps = (state: stateType) => {
+  return {
+    currentBook: state.book.currentBook,
+    currentChapter: state.reader.currentChapter,
+    readerMode: state.reader.readerMode,
+    isNavLocked: state.reader.isNavLocked,
+    isSettingLocked: state.reader.isSettingLocked,
+    backgroundColor: state.reader.backgroundColor,
+    isHideFooter: state.reader.isHideFooter,
+    isHideHeader: state.reader.isHideHeader,
+    isShowPageBorder: state.reader.isShowPageBorder,
+    textOrientation: state.reader.textOrientation,
+    currentChapterIndex: state.reader.currentChapterIndex,
+    htmlBook: state.reader.htmlBook,
+    isShowBookmark: state.viewArea.isShowBookmark,
+    isAuthed: state.manager.isAuthed,
+    jumpPosition: state.reader.jumpPosition,
+  };
+};
+const actionCreator = {
+  handleCurrentChapter,
+  handleCurrentChapterIndex,
+  handleJumpPosition,
+};
+export default connect(
+  mapStateToProps,
+  actionCreator
+)(withTranslation()(Background) as any);
