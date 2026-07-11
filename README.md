@@ -91,6 +91,21 @@ chmod +x scripts/package-local-image.sh
 koodo-centralized:local
 ```
 
+### 方式三：直接拉取阿里云镜像
+
+当前已推送预构建镜像到阿里云 ACR：
+
+```bash
+docker pull registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
+```
+
+镜像信息：
+
+- 镜像地址：`registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6`
+- 对应代码提交：`bd406af6 Enhance centralized Books library`
+- 远端 digest：`sha256:de361422a4bf23d2e2b188ef29d11ad6fea4b0af9c39bc80ed5e9d49c2bd31c3`
+- 本地镜像 ID：`8cb672f5fc84`
+
 ## 运行容器
 
 当前部署建议与现网保持一致：
@@ -111,8 +126,10 @@ docker run -d \
   -v /vol1/data/Books/data/uploads:/app/uploads \
   --log-opt max-size=100m \
   --log-opt max-file=5 \
-  koodo-centralized:local
+  registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
 ```
+
+如果使用本地构建镜像，将最后一行替换为 `koodo-centralized:local`。
 
 访问地址：
 
