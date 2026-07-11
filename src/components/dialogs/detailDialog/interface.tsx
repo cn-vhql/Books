@@ -25,5 +25,6 @@ export interface DetailDialogState {
   metadataApplyingKey?: string;
   activeTab?: "overview" | "notes";
   notes?: NoteModel[];
+  notesLoaded?: boolean;
   isEditing?: boolean;
 }

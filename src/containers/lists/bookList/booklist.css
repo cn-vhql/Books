@@ -26,6 +26,96 @@
   justify-content: flex-end;
   gap: 12px;
 }
+.book-list-tag-panel {
+  position: absolute;
+  top: 64px;
+  left: 220px;
+  width: calc(100% - 220px);
+  box-sizing: border-box;
+  padding: 8px 24px 10px;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+  background: var(--bg-color);
+  border-bottom: 1px solid rgba(127, 127, 127, 0.12);
+}
+.book-list-tag-title {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: 180px;
+  color: var(--text-color);
+}
+.book-list-tag-title span:first-child {
+  font-size: 14px;
+  font-weight: 600;
+}
+.book-list-tag-title span:last-child {
+  font-size: 12px;
+  opacity: 0.68;
+  white-space: nowrap;
+}
+.book-list-tag-stat {
+  display: none;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--bg-color-secondary);
+  color: var(--text-color);
+  font-size: 13px;
+}
+.book-list-tag-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0 4px;
+  scrollbar-width: thin;
+}
+.book-list-tag-chip {
+  border: none;
+  border-radius: 8px;
+  min-height: 36px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  background: var(--bg-color-secondary);
+  color: var(--text-color);
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.12);
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
+}
+.book-list-tag-chip span {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(127, 127, 127, 0.14);
+  opacity: 0.86;
+  font-size: 12px;
+}
+.book-list-tag-chip.active {
+  background: #d9cbb7;
+  color: #2f261b;
+  box-shadow: inset 0 0 0 1px rgba(92, 68, 43, 0.18);
+  font-weight: 600;
+}
+.book-list-tag-chip.active span {
+  background: rgba(92, 68, 43, 0.14);
+  color: #2f261b;
+  opacity: 1;
+}
 .book-list-container {
   width: 100%;
   min-height: 0;

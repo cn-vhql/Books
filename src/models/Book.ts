@@ -11,6 +11,16 @@ class Book {
   page: number;
   path: string;
   charset: string;
+  isbn?: string;
+  doubanId?: string;
+  tags?: string;
+  publishedAt?: string;
+  rating?: string;
+  source?: string;
+  sourceUrl?: string;
+  series?: string;
+  owner?: string;
+  visibleToAll?: boolean;
   constructor(
     key: string,
     name: string,
@@ -37,6 +47,16 @@ class Book {
     this.page = page;
     this.path = path;
     this.charset = charset;
+    this.isbn = "";
+    this.doubanId = "";
+    this.tags = "";
+    this.publishedAt = "";
+    this.rating = "";
+    this.source = "";
+    this.sourceUrl = "";
+    this.series = "";
+    this.owner = "";
+    this.visibleToAll = true;
   }
 }
 

@@ -21,7 +21,7 @@ class DatabaseService {
   static async getAllRecords(dbName: string) {
     if (this.isServerMode()) {
       if (dbName === "books") {
-        return await ServerLibrary.getBooks();
+        return await ServerLibrary.listAllBooks();
       }
       if (dbName === "notes" || dbName === "bookmarks") {
         return await ServerLibrary.listRecords(dbName);

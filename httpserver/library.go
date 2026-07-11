@@ -11,17 +11,27 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
 
 var libraryEnabled bool
+var doubanImageProxyState struct {
+	sync.Mutex
+	started bool
+	cmd     *exec.Cmd
+}
 
 func init() {
 	libraryEnabled = getEnv("ENABLE_LIBRARY_SERVER", "true") != "false"
@@ -85,6 +95,7 @@ type metadataCandidate struct {
 	Cover       string `json:"cover"`
 	ISBN        string `json:"isbn"`
 	DoubanID    string `json:"doubanId"`
+	Tags        string `json:"tags"`
 	PublishedAt string `json:"publishedAt"`
 	Rating      string `json:"rating"`
 	Source      string `json:"source"`
@@ -101,6 +112,18 @@ type pagedBooksResponse struct {
 	Total    int           `json:"total"`
 	Page     int           `json:"page"`
 	PageSize int           `json:"pageSize"`
+}
+
+type libraryTagStat struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+type libraryTagsResponse struct {
+	Items            []libraryTagStat `json:"items"`
+	TotalTags        int              `json:"totalTags"`
+	TaggedBooksCount int              `json:"taggedBooksCount"`
+	TotalBooks       int              `json:"totalBooks"`
 }
 
 type recordFilter struct {
@@ -639,13 +662,18 @@ func parseBookSort(r *http.Request) string {
 	switch r.URL.Query().Get("sort") {
 	case "name", "author", "size", "page", "key":
 		return r.URL.Query().Get("sort")
+	case "imported", "rowid":
+		return "rowid"
 	default:
-		return "name"
+		return "rowid"
 	}
 }
 
 func parseSortOrder(r *http.Request) string {
 	if strings.EqualFold(r.URL.Query().Get("order"), "desc") {
+		return "DESC"
+	}
+	if strings.TrimSpace(r.URL.Query().Get("sort")) == "" && strings.TrimSpace(r.URL.Query().Get("order")) == "" {
 		return "DESC"
 	}
 	return "ASC"
@@ -777,7 +805,63 @@ func queryLibraryBooks(search, sortField, orderField string, user *authenticated
 	return books, rows.Err()
 }
 
-func queryLibraryBooksPaged(search, sortField, orderField string, page, pageSize int, user *authenticatedUser) ([]libraryBook, int, error) {
+func splitBookTags(value string) []string {
+	if strings.TrimSpace(value) == "" {
+		return []string{}
+	}
+	parts := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == '，' || r == '、' || r == '/' || r == '|'
+	})
+	tags := []string{}
+	seen := map[string]bool{}
+	for _, part := range parts {
+		tag := strings.TrimSpace(part)
+		if tag == "" || seen[tag] {
+			continue
+		}
+		seen[tag] = true
+		tags = append(tags, tag)
+	}
+	return tags
+}
+
+func bookHasTag(book libraryBook, tag string) bool {
+	if tag == "" {
+		return true
+	}
+	for _, item := range splitBookTags(book.Tags) {
+		if item == tag {
+			return true
+		}
+	}
+	return false
+}
+
+func queryLibraryBooksPaged(search, tag, sortField, orderField string, page, pageSize int, user *authenticatedUser) ([]libraryBook, int, error) {
+	tag = strings.TrimSpace(tag)
+	if tag != "" {
+		books, err := queryLibraryBooks(search, sortField, orderField, user)
+		if err != nil {
+			return nil, 0, err
+		}
+		filtered := make([]libraryBook, 0, len(books))
+		for _, book := range books {
+			if bookHasTag(book, tag) {
+				filtered = append(filtered, book)
+			}
+		}
+		total := len(filtered)
+		start := (page - 1) * pageSize
+		if start >= total {
+			return []libraryBook{}, total, nil
+		}
+		end := start + pageSize
+		if end > total {
+			end = total
+		}
+		return filtered[start:end], total, nil
+	}
+
 	db, err := openBooksDB()
 	if err != nil {
 		return nil, 0, err
@@ -879,6 +963,43 @@ func queryLibraryBooksPaged(search, sortField, orderField string, page, pageSize
 	}
 
 	return books, total, rows.Err()
+}
+
+func queryLibraryTagStats(user *authenticatedUser) (libraryTagsResponse, error) {
+	books, err := queryLibraryBooks("", "name", "ASC", user)
+	if err != nil {
+		return libraryTagsResponse{}, err
+	}
+
+	counts := map[string]int{}
+	taggedBooksCount := 0
+	for _, book := range books {
+		tags := splitBookTags(book.Tags)
+		if len(tags) > 0 {
+			taggedBooksCount++
+		}
+		for _, tag := range tags {
+			counts[tag]++
+		}
+	}
+
+	items := make([]libraryTagStat, 0, len(counts))
+	for name, count := range counts {
+		items = append(items, libraryTagStat{Name: name, Count: count})
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Count != items[j].Count {
+			return items[i].Count > items[j].Count
+		}
+		return strings.Compare(items[i].Name, items[j].Name) < 0
+	})
+
+	return libraryTagsResponse{
+		Items:            items,
+		TotalTags:        len(items),
+		TaggedBooksCount: taggedBooksCount,
+		TotalBooks:       len(books),
+	}, nil
 }
 
 func lookupUsernameByID(id int64) string {
@@ -1320,6 +1441,236 @@ func writeCoverFile(bookKey string, fileName string, content []byte) (string, er
 		return "", err
 	}
 	return coverName, nil
+}
+
+func coverExtensionFromContentType(contentType, fallback string) string {
+	contentType = strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0])
+	switch strings.ToLower(contentType) {
+	case "image/jpeg", "image/jpg":
+		return ".jpg"
+	case "image/png":
+		return ".png"
+	case "image/webp":
+		return ".webp"
+	case "image/gif":
+		return ".gif"
+	}
+	ext := strings.ToLower(filepath.Ext(fallback))
+	switch ext {
+	case ".jpg", ".jpeg", ".png", ".webp", ".gif":
+		if ext == ".jpeg" {
+			return ".jpg"
+		}
+		return ext
+	default:
+		return ".jpg"
+	}
+}
+
+func isImageContent(content []byte) bool {
+	if len(content) >= 3 && content[0] == 0xff && content[1] == 0xd8 && content[2] == 0xff {
+		return true
+	}
+	if len(content) >= 8 && string(content[:8]) == "\x89PNG\r\n\x1a\n" {
+		return true
+	}
+	if len(content) >= 12 && string(content[:4]) == "RIFF" && string(content[8:12]) == "WEBP" {
+		return true
+	}
+	if len(content) >= 6 && (string(content[:6]) == "GIF87a" || string(content[:6]) == "GIF89a") {
+		return true
+	}
+	return false
+}
+
+func doubanImageProxyBaseURL() string {
+	return strings.TrimRight(getEnv("DOUBAN_IMAGE_PROXY_URL", "http://127.0.0.1:20050"), "/")
+}
+
+func ensureDoubanImageProxy(proxyBase string) error {
+	parsed, err := url.Parse(proxyBase)
+	if err != nil {
+		return err
+	}
+	if parsed.Hostname() != "127.0.0.1" && parsed.Hostname() != "localhost" {
+		return nil
+	}
+	port := parsed.Port()
+	if port == "" {
+		if parsed.Scheme == "https" {
+			port = "443"
+		} else {
+			port = "80"
+		}
+	}
+	address := net.JoinHostPort(parsed.Hostname(), port)
+	if conn, err := net.DialTimeout("tcp", address, 300*time.Millisecond); err == nil {
+		_ = conn.Close()
+		return nil
+	}
+
+	doubanImageProxyState.Lock()
+	defer doubanImageProxyState.Unlock()
+	if doubanImageProxyState.started {
+		if conn, err := net.DialTimeout("tcp", address, 300*time.Millisecond); err == nil {
+			_ = conn.Close()
+			return nil
+		}
+		doubanImageProxyState.started = false
+		doubanImageProxyState.cmd = nil
+	}
+	if conn, err := net.DialTimeout("tcp", address, 300*time.Millisecond); err == nil {
+		_ = conn.Close()
+		doubanImageProxyState.started = true
+		return nil
+	}
+
+	binaryPath := getEnv("DOUBAN_IMAGE_PROXY_BINARY", "/app/douban-api-rs")
+	if _, err := os.Stat(binaryPath); err != nil {
+		return fmt.Errorf("douban image proxy is unavailable: %w", err)
+	}
+	cmd := exec.Command(binaryPath, "--host", parsed.Hostname(), "--port", port)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	doubanImageProxyState.cmd = cmd
+	doubanImageProxyState.started = true
+	go func() {
+		_ = cmd.Wait()
+		doubanImageProxyState.Lock()
+		if doubanImageProxyState.cmd == cmd {
+			doubanImageProxyState.started = false
+			doubanImageProxyState.cmd = nil
+		}
+		doubanImageProxyState.Unlock()
+	}()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if conn, err := net.DialTimeout("tcp", address, 300*time.Millisecond); err == nil {
+			_ = conn.Close()
+			return nil
+		}
+		time.Sleep(150 * time.Millisecond)
+	}
+	return errors.New("douban image proxy did not start")
+}
+
+func downloadRemoteCoverDirect(cover string) ([]byte, string, error) {
+	client := &http.Client{Timeout: 20 * time.Second}
+	req, err := http.NewRequest(http.MethodGet, cover, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	req.Header.Set("Referer", "https://book.douban.com/")
+	req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, "", fmt.Errorf("remote cover request failed: %s", resp.Status)
+	}
+	content, err := io.ReadAll(io.LimitReader(resp.Body, 20<<20))
+	if err != nil {
+		return nil, "", err
+	}
+	if len(content) == 0 {
+		return nil, "", errors.New("empty remote cover")
+	}
+	if !isImageContent(content) {
+		return nil, "", errors.New("remote cover is not an image")
+	}
+	return content, resp.Header.Get("Content-Type"), nil
+}
+
+func downloadRemoteCoverViaDoubanProxy(cover string) ([]byte, string, error) {
+	proxyBase := doubanImageProxyBaseURL()
+	if proxyBase == "" {
+		return nil, "", errors.New("douban image proxy is disabled")
+	}
+	if err := ensureDoubanImageProxy(proxyBase); err != nil {
+		return nil, "", err
+	}
+	proxyURL := proxyBase + "/proxy?url=" + url.QueryEscape(cover)
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(proxyURL)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, "", fmt.Errorf("douban image proxy failed: %s", resp.Status)
+	}
+	content, err := io.ReadAll(io.LimitReader(resp.Body, 20<<20))
+	if err != nil {
+		return nil, "", err
+	}
+	if len(content) == 0 {
+		return nil, "", errors.New("empty proxied cover")
+	}
+	if !isImageContent(content) {
+		return nil, "", errors.New("proxied cover is not an image")
+	}
+	return content, resp.Header.Get("Content-Type"), nil
+}
+
+func downloadRemoteCover(cover string) ([]byte, string, error) {
+	content, contentType, directErr := downloadRemoteCoverDirect(cover)
+	if directErr == nil {
+		return content, contentType, nil
+	}
+	if strings.Contains(cover, "doubanio.com/") {
+		content, contentType, proxyErr := downloadRemoteCoverViaDoubanProxy(cover)
+		if proxyErr == nil {
+			return content, contentType, nil
+		}
+		return nil, "", fmt.Errorf("%v; douban proxy fallback failed: %w", directErr, proxyErr)
+	}
+	return nil, "", directErr
+}
+
+func persistLibraryCover(bookKey string, cover string) (string, error) {
+	cover = strings.TrimSpace(cover)
+	if cover == "" {
+		return "", nil
+	}
+
+	if strings.HasPrefix(cover, "data:") {
+		parts := strings.SplitN(cover, ",", 2)
+		if len(parts) != 2 {
+			return "", errors.New("invalid cover data")
+		}
+		meta := strings.TrimPrefix(strings.SplitN(parts[0], ";", 2)[0], "data:")
+		payload, err := base64.StdEncoding.DecodeString(parts[1])
+		if err != nil {
+			return "", err
+		}
+		return writeCoverFile(bookKey, bookKey+coverExtensionFromContentType(meta, ""), payload)
+	}
+
+	if strings.HasPrefix(cover, "http://") || strings.HasPrefix(cover, "https://") {
+		content, contentType, err := downloadRemoteCover(cover)
+		if err != nil {
+			return "", err
+		}
+		ext := coverExtensionFromContentType(contentType, cover)
+		return writeCoverFile(bookKey, bookKey+ext, content)
+	}
+
+	return cover, nil
+}
+
+func removeLocalCoverIfUnused(cover string) {
+	cover = strings.TrimSpace(cover)
+	if cover == "" || strings.HasPrefix(cover, "http://") || strings.HasPrefix(cover, "https://") || strings.HasPrefix(cover, "data:") {
+		return
+	}
+	_ = os.Remove(filepath.Join(uploadDir, "cover", cover))
 }
 
 func serveLibraryCover(w http.ResponseWriter, r *http.Request, book *libraryBook) {
@@ -1838,8 +2189,7 @@ func handleLibraryMetadata(w http.ResponseWriter, r *http.Request, currentUser *
 }
 
 func urlQueryEscape(value string) string {
-	replacer := strings.NewReplacer(" ", "%20", "#", "%23", "&", "%26", "+", "%2B", "?", "%3F")
-	return replacer.Replace(value)
+	return url.QueryEscape(value)
 }
 
 func handleLibraryBooks(w http.ResponseWriter, r *http.Request, currentUser *authenticatedUser) {
@@ -1852,6 +2202,7 @@ func handleLibraryBooks(w http.ResponseWriter, r *http.Request, currentUser *aut
 		}
 		books, total, err := queryLibraryBooksPaged(
 			r.URL.Query().Get("q"),
+			r.URL.Query().Get("tag"),
 			parseBookSort(r),
 			parseSortOrder(r),
 			page,
@@ -1905,6 +2256,19 @@ func handleLibraryBooks(w http.ResponseWriter, r *http.Request, currentUser *aut
 	default:
 		writePlain(w, http.StatusMethodNotAllowed, "Method Not Allowed")
 	}
+}
+
+func handleLibraryTags(w http.ResponseWriter, r *http.Request, currentUser *authenticatedUser) {
+	if r.Method != http.MethodGet {
+		writePlain(w, http.StatusMethodNotAllowed, "Method Not Allowed")
+		return
+	}
+	stats, err := queryLibraryTagStats(currentUser)
+	if err != nil {
+		writePlain(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, stats)
 }
 
 func parseRecordPayload(r *http.Request) (map[string]any, error) {
@@ -2005,13 +2369,26 @@ func handleLibraryBook(w http.ResponseWriter, r *http.Request, key string, actio
 					ownerUserID = user.ID
 				}
 			}
+			oldCover := ""
 			if existing, err := queryLibraryBook(key, currentUser); err == nil {
+				oldCover = existing.Cover
 				if book.Format == "" {
 					book.Format = existing.Format
 				}
 				if book.Cover == "" {
 					book.Cover = existing.Cover
 				}
+			}
+			persistedCover, err := persistLibraryCover(book.Key, book.Cover)
+			if err != nil {
+				writePlain(w, http.StatusBadGateway, err.Error())
+				return
+			}
+			if persistedCover != "" {
+				book.Cover = persistedCover
+			}
+			if oldCover != "" && oldCover != book.Cover {
+				removeLocalCoverIfUnused(oldCover)
 			}
 			if err := upsertLibraryBook(book, ownerUserID, visibleToAll); err != nil {
 				writePlain(w, http.StatusInternalServerError, err.Error())
@@ -2195,6 +2572,8 @@ func libraryHandler(w http.ResponseWriter, r *http.Request) {
 		handleLibrarySettings(w, r, currentUser)
 	case path == "/api/library/metadata":
 		handleLibraryMetadata(w, r, currentUser)
+	case path == "/api/library/tags":
+		handleLibraryTags(w, r, currentUser)
 	case path == "/api/library/books":
 		handleLibraryBooks(w, r, currentUser)
 	case strings.HasPrefix(path, "/api/library/books/"):

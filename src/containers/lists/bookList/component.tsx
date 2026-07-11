@@ -9,13 +9,19 @@ import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
 import { Redirect, withRouter } from "react-router-dom";
 import ViewMode from "../../../components/viewMode";
 import SelectBook from "../../../components/selectBook";
-import { Trans } from "react-i18next";
 import Book from "../../../models/Book";
 import { isElectron } from "react-device-detect";
 import DatabaseService from "../../../utils/storage/databaseService";
 import { throttle } from "../../../utils/common";
+import ServerLibrary from "../../../utils/storage/serverLibrary";
 declare var window: any;
 let currentBookMode = "home";
+
+type TagStat = {
+  name: string;
+  count: number;
+};
+
 function getBookCountPerPage() {
   const container = document.querySelector(
     ".book-list-container"
@@ -60,6 +66,11 @@ class BookList extends React.Component<BookListProps, BookListState> {
       fullBooksData: [], // 存储从数据库加载的完整书籍数据
       cardScale: parseFloat(ConfigService.getReaderConfig("cardScale") || "1"),
       readingStatusFilter: "",
+      tagFilter: "",
+      serverPage: 1,
+      tagStats: [],
+      taggedBooksCount: 0,
+      totalTagBooks: 0,
     };
   }
   UNSAFE_componentWillMount() {
@@ -67,10 +78,13 @@ class BookList extends React.Component<BookListProps, BookListState> {
   }
 
   async componentDidMount() {
-    if (!this.props.books || !this.props.books[0]) {
-      return <Redirect to="manager/empty" />;
+    // The library request is asynchronous. Do not treat the initial null
+    // value as an empty library before the first response arrives.
+    if (!this.props.books) {
+      return;
     }
     if (DatabaseService.isServerMode()) {
+      await this.loadServerTagStats();
       return;
     }
     this.setState({
@@ -144,6 +158,7 @@ class BookList extends React.Component<BookListProps, BookListState> {
       this.setState({
         displayedBooksCount: getBookCountPerPage(),
         isLoadingMore: false,
+        serverPage: 1,
       });
       this.props.handleLoadMore(false);
       // 滚动到顶部
@@ -152,12 +167,37 @@ class BookList extends React.Component<BookListProps, BookListState> {
       }
       // 重新加载完整的书籍数据
       this.loadFullBooksData();
+      if (DatabaseService.isServerMode()) {
+        this.loadServerTagStats();
+      }
     }
     // 阅读状态筛选变化时，重新加载完整书籍数据
     if (prevState.readingStatusFilter !== this.state.readingStatusFilter) {
       this.loadFullBooksData();
+      if (DatabaseService.isServerMode()) {
+        this.props.handleFetchBooks(1, this.props.booksPageSize, this.state.tagFilter);
+      }
+    }
+    if (prevState.tagFilter !== this.state.tagFilter) {
+      this.props.handleFetchBooks(1, this.props.booksPageSize, this.state.tagFilter);
     }
   }
+
+  loadServerTagStats = async () => {
+    if (!DatabaseService.isServerMode()) {
+      return;
+    }
+    try {
+      const response = await ServerLibrary.getTags();
+      this.setState({
+        tagStats: response.items || [],
+        taggedBooksCount: response.taggedBooksCount || 0,
+        totalTagBooks: response.totalBooks || 0,
+      });
+    } catch (error) {
+      console.error("Failed to load server tag stats:", error);
+    }
+  };
 
   // 从数据库加载完整的书籍数据
   loadFullBooksData = async () => {
@@ -326,6 +366,41 @@ class BookList extends React.Component<BookListProps, BookListState> {
     });
   };
 
+  parseBookTags = (value: string | undefined): string[] => {
+    if (!value) {
+      return [];
+    }
+    return value
+      .split(/[,，、/|]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  filterBooksByTag = (books: Book[], tag: string): Book[] => {
+    if (!tag) {
+      return books;
+    }
+    return books.filter((book) => this.parseBookTags(book.tags).includes(tag));
+  };
+
+  getTagStats = (books: Book[]): TagStat[] => {
+    const counts = new Map<string, number>();
+    books.forEach((book) => {
+      this.parseBookTags(book.tags).forEach((tag) => {
+        counts.set(tag, (counts.get(tag) || 0) + 1);
+      });
+    });
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => (b.count !== a.count ? b.count - a.count : a.name.localeCompare(b.name, "zh-CN")));
+  };
+
+  handleTagFilterChange = (tag: string) => {
+    this.setState({
+      tagFilter: this.state.tagFilter === tag ? "" : tag,
+    });
+  };
+
   renderBookList = (books: Book[], bookMode: string) => {
     if (books.length === 0 && !this.props.isSearch) {
       return <Redirect to="/manager/empty" />;
@@ -345,7 +420,7 @@ class BookList extends React.Component<BookListProps, BookListState> {
     return displayedBooks.map((item: BookModel, index: number) => {
       return this.props.viewMode === "list" ? (
         <BookListItem
-          key={index}
+          key={item.key}
           {...({
             book: item,
             isSelected: this.props.selectedBooks.indexOf(item.key) > -1,
@@ -355,7 +430,7 @@ class BookList extends React.Component<BookListProps, BookListState> {
         />
       ) : this.props.viewMode === "card" ? (
         <BookCardItem
-          key={index}
+          key={item.key}
           {...({
             book: item,
             cardScale: this.state.cardScale,
@@ -366,7 +441,7 @@ class BookList extends React.Component<BookListProps, BookListState> {
         />
       ) : (
         <BookCoverItem
-          key={index}
+          key={item.key}
           {...({
             book: item,
             isSelected: this.props.selectedBooks.indexOf(item.key) > -1,
@@ -387,19 +462,34 @@ class BookList extends React.Component<BookListProps, BookListState> {
           : this.state.isHideShelfBook
             ? "hide"
             : "home";
+    const serverHomeBooks =
+      DatabaseService.isServerMode() &&
+      !this.props.isSearch &&
+      !this.props.shelfTitle &&
+      this.props.mode !== "favorite" &&
+      !this.state.isHideShelfBook
+        ? this.props.books
+        : null;
     let books =
       bookMode === "search"
         ? this.props.searchResults
         : bookMode === "shelf"
-          ? this.handleShelf(this.props.books, this.props.shelfTitle)
+          ? this.handleShelf(serverHomeBooks || this.props.books, this.props.shelfTitle)
           : bookMode === "favorite"
             ? this.handleKeyFilter(
-                this.props.books,
+                serverHomeBooks || this.props.books,
                 ConfigService.getAllListConfig("favoriteBooks")
               )
             : bookMode === "hide"
-              ? this.handleFilterShelfBook(this.props.books)
-              : this.props.books;
+              ? this.handleFilterShelfBook((serverHomeBooks || this.props.books) as BookModel[])
+              : serverHomeBooks || this.props.books;
+    if (
+      bookMode === "home" &&
+      this.state.tagFilter &&
+      !DatabaseService.isServerMode()
+    ) {
+      books = this.filterBooksByTag(books, this.state.tagFilter);
+    }
     if (this.state.readingStatusFilter) {
       books = this.filterBooksByReadingStatus(
         books,
@@ -422,22 +512,43 @@ class BookList extends React.Component<BookListProps, BookListState> {
   };
 
   render() {
+    if (!this.props.books) {
+      return (
+        <div className="book-list-loading" role="status">
+          正在加载书库...
+        </div>
+      );
+    }
     if (
       (this.state.favoriteBooks === 0 && this.props.mode === "favorite") ||
-      !this.props.books ||
       !this.props.books[0]
     ) {
       return <Redirect to="/manager/empty" />;
     }
     const { books, bookMode } = this.handleBooks();
+    const isServerMainLibraryMode =
+      DatabaseService.isServerMode() &&
+      !this.props.isSearch &&
+      !this.props.shelfTitle &&
+      this.props.mode !== "favorite";
+    const pageSize = this.props.booksPageSize || 24;
     const totalBooks = DatabaseService.isServerMode()
       ? this.props.totalBooksCount || books.length
       : books.length;
     const totalPages = Math.max(
       1,
-      Math.ceil(totalBooks / (this.props.booksPageSize || 24))
+      Math.ceil(totalBooks / pageSize)
     );
     const currentPage = this.props.booksPage || 1;
+    const pagedBooks = books;
+    const tagStats = this.state.tagStats;
+    const hasTagPanel = isServerMainLibraryMode && tagStats.length > 0;
+    const containerStyle = {
+      ...(this.props.isCollapsed
+        ? { width: "calc(100vw - 70px)", left: "70px" }
+        : {}),
+      ...(hasTagPanel ? { top: "124px", height: "calc(100% - 124px)" } : {}),
+    };
     return (
       <>
         <div
@@ -463,13 +574,11 @@ class BookList extends React.Component<BookListProps, BookListState> {
                 value={this.state.cardScale}
                 onChange={this.handleCardScaleChange}
                 className="book-card-scale-slider"
-                title="Adjust cover size"
+                title="调整封面大小"
               />
             )}
             <div className="book-list-total-page">
-              <Trans i18nKey="Total books" count={totalBooks}>
-                {"Total " + totalBooks + " books"}
-              </Trans>
+              共 {totalBooks} 本书
             </div>
             <select
               className="lang-setting-dropdown"
@@ -480,28 +589,58 @@ class BookList extends React.Component<BookListProps, BookListState> {
               style={{ marginRight: "10px", width: "70px", borderWidth: "0px" }}
             >
               <option value="" className="lang-setting-option">
-                {this.props.t("All")}
+                全部
               </option>
               <option value="unread" className="lang-setting-option">
-                {this.props.t("Unread")}
+                未读
               </option>
               <option value="reading" className="lang-setting-option">
-                {this.props.t("CurrentlyReading")}
+                阅读中
               </option>
               <option value="finished" className="lang-setting-option">
-                {this.props.t("Finished")}
+                已读完
               </option>
             </select>
             <ViewMode />
           </div>
         </div>
+        {hasTagPanel && (
+          <div
+            className="book-list-tag-panel"
+            style={
+              this.props.isCollapsed
+                ? { width: "calc(100% - 70px)", left: "70px" }
+                : {}
+            }
+          >
+            <div className="book-list-tag-filters">
+              <button
+                type="button"
+                className={`book-list-tag-chip ${this.state.tagFilter ? "" : "active"}`}
+                onClick={() => this.setState({ tagFilter: "" })}
+              >
+                全部标签
+                <span>{this.state.totalTagBooks || totalBooks}</span>
+              </button>
+              {tagStats.map((tag) => (
+                <button
+                  key={tag.name}
+                  type="button"
+                  className={`book-list-tag-chip ${
+                    this.state.tagFilter === tag.name ? "active" : ""
+                  }`}
+                  onClick={() => this.handleTagFilterChange(tag.name)}
+                >
+                  {tag.name}
+                  <span>{tag.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div
           className="book-list-container-parent"
-          style={
-            this.props.isCollapsed
-              ? { width: "calc(100vw - 70px)", left: "70px" }
-              : {}
-          }
+          style={containerStyle}
         >
           <div className="book-list-container">
             <ul
@@ -512,7 +651,7 @@ class BookList extends React.Component<BookListProps, BookListState> {
                 { "--card-scale": this.state.cardScale } as React.CSSProperties
               }
             >
-              {this.renderBookList(books, bookMode)}
+              {this.renderBookList(pagedBooks, bookMode)}
             </ul>
           </div>
           {DatabaseService.isServerMode() && !this.props.isSearch && (
@@ -523,12 +662,13 @@ class BookList extends React.Component<BookListProps, BookListState> {
                 type="button"
                 className="detail-dialog-server-secondary"
                 disabled={currentPage <= 1}
-                onClick={() =>
+                onClick={() => {
                   this.props.handleFetchBooks(
                     Math.max(1, currentPage - 1),
-                    this.props.booksPageSize
-                  )
-                }
+                    this.props.booksPageSize,
+                    isServerMainLibraryMode ? this.state.tagFilter : undefined
+                  );
+                }}
               >
                 上一页
               </button>
@@ -539,12 +679,13 @@ class BookList extends React.Component<BookListProps, BookListState> {
                 type="button"
                 className="detail-dialog-server-primary"
                 disabled={currentPage >= totalPages}
-                onClick={() =>
+                onClick={() => {
                   this.props.handleFetchBooks(
                     Math.min(totalPages, currentPage + 1),
-                    this.props.booksPageSize
-                  )
-                }
+                    this.props.booksPageSize,
+                    isServerMainLibraryMode ? this.state.tagFilter : undefined
+                  );
+                }}
               >
                 下一页
               </button>

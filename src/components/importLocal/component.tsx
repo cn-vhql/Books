@@ -140,6 +140,7 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
       );
       let isImportPath =
         ConfigService.getReaderConfig("isImportPath") === "yes";
+      let persistedBook = book;
       if (isElectron && isImportPath) {
         const fs = window.require("fs");
         if (!book.path || !fs.existsSync(book.path)) {
@@ -157,7 +158,11 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
             type: `image/${coverResult.extension}`,
           });
         }
-        await ServerLibrary.saveBook(book as any, fileBlob, coverBlob);
+        persistedBook = await ServerLibrary.saveBook(
+          book as any,
+          fileBlob,
+          coverBlob
+        );
       } else if (this.state.isOpenFile) {
         if (ConfigService.getReaderConfig("isPreventAdd") === "yes") {
           //ignore
@@ -191,9 +196,12 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
         await CoverUtil.addCover(book);
       }
 
-      this.props.handleReadingBook(book);
-      ConfigService.setListConfig(book.key, "recentBooks");
-      DatabaseService.saveRecord(book, "books")
+      this.props.handleReadingBook(persistedBook);
+      ConfigService.setListConfig(persistedBook.key, "recentBooks");
+      const persistPromise = ServerLibrary.isEnabled()
+        ? Promise.resolve()
+        : DatabaseService.saveRecord(persistedBook, "books");
+      persistPromise
         .then(() => {
           this.props.handleFetchBooks();
           if (this.props.mode === "shelf") {
@@ -202,20 +210,20 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
             }
             ConfigService.setMapConfig(
               this.state.importingShelfTitle || this.props.shelfTitle,
-              book.key,
+              persistedBook.key,
               "shelfList"
             );
           }
           toast.success(
             this.props.t("Addition successful") +
               ": " +
-              book.name.substring(0, 50),
+              persistedBook.name.substring(0, 50),
             {
               id: "add-book",
             }
           );
           setTimeout(() => {
-            this.state.isOpenFile && this.handleJump(book);
+            this.state.isOpenFile && this.handleJump(persistedBook);
             if (
               ConfigService.getReaderConfig("isOpenInMain") === "yes" &&
               this.state.isOpenFile
@@ -231,7 +239,9 @@ class ImportLocal extends React.Component<ImportLocalProps, ImportLocalState> {
         .catch((error) => {
           console.error(error, book.name);
           toast.error(
-            this.props.t("Import failed") + ": " + book.name.substring(0, 50),
+            this.props.t("Import failed") +
+              ": " +
+              persistedBook.name.substring(0, 50),
             {
               duration: 4000,
               id: "add-book",

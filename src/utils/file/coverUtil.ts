@@ -43,6 +43,39 @@ class AsyncQueue {
 }
 
 const saveCoverQueue = new AsyncQueue();
+class LimitedAsyncQueue {
+  private queue: (() => void)[] = [];
+  private running = 0;
+
+  constructor(private readonly limit: number) {}
+
+  run<T>(task: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const execute = async () => {
+        this.running += 1;
+        try {
+          resolve(await task());
+        } catch (error) {
+          reject(error);
+        } finally {
+          this.running -= 1;
+          this.next();
+        }
+      };
+      this.queue.push(execute);
+      this.next();
+    });
+  }
+
+  private next() {
+    while (this.running < this.limit && this.queue.length > 0) {
+      const execute = this.queue.shift();
+      execute && execute();
+    }
+  }
+}
+
+const serverCoverFetchQueue = new LimitedAsyncQueue(4);
 const serverCoverStore = localforage.createInstance({
   name: "books-server-cache",
   storeName: "covers",
@@ -76,18 +109,14 @@ class CoverUtil {
       if (book.cover && book.cover.startsWith("data:")) {
         return book.cover;
       }
-      if (book.cover && /^https?:\/\//i.test(book.cover)) {
-        return book.cover;
-      }
-      const cachedCover = await this.getServerCachedCover(book);
-      if (cachedCover) {
-        return cachedCover;
-      }
       try {
-        if (await ServerLibrary.canUseDirectCoverUrl()) {
-          return await ServerLibrary.getCoverUrl(book.key);
+        const cachedCover = await this.getServerCachedCover(book);
+        if (cachedCover) {
+          return cachedCover;
         }
-        const blobUrl = await ServerLibrary.fetchCoverBlobUrl(book.key);
+        const blobUrl = await serverCoverFetchQueue.run(() =>
+          ServerLibrary.fetchCoverBlobUrl(book.key)
+        );
         const response = await fetch(blobUrl);
         if (response.ok) {
           const dataUrl = await this.blobToBase64(await response.blob());
@@ -97,7 +126,7 @@ class CoverUtil {
         return blobUrl;
       } catch (error) {
         console.warn("Failed to fetch server cover", book.key, error);
-        return await ServerLibrary.getCoverUrl(book.key);
+        return "";
       }
     }
     if (isElectron) {

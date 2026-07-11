@@ -34,6 +34,7 @@ export interface ServerMetadataItem {
   cover?: string;
   isbn?: string;
   doubanId?: string;
+  tags?: string;
   publishedAt?: string;
   rating?: string;
   source?: string;
@@ -50,6 +51,27 @@ export interface ServerBooksPageResponse {
   total: number;
   page: number;
   pageSize: number;
+}
+
+export interface ServerBookTagStat {
+  name: string;
+  count: number;
+}
+
+export interface ServerBookTagsResponse {
+  items: ServerBookTagStat[];
+  totalTags: number;
+  taggedBooksCount: number;
+  totalBooks: number;
+}
+
+export interface ServerBooksQueryOptions {
+  page?: number;
+  pageSize?: number;
+  query?: string;
+  tag?: string;
+  sort?: string;
+  order?: string;
 }
 
 class ServerLibrary {
@@ -105,13 +127,57 @@ class ServerLibrary {
     return response.json();
   }
 
-  static async getBooks(page = 1, pageSize = 24) {
+  static async getBooks(options: ServerBooksQueryOptions = {}) {
+    const {
+      page = 1,
+      pageSize = 24,
+      query = "",
+      tag = "",
+      sort = "",
+      order = "",
+    } = options;
     const params = new URLSearchParams();
     params.set("page", String(page));
     params.set("pageSize", String(pageSize));
+    if (query) {
+      params.set("q", query);
+    }
+    if (tag) {
+      params.set("tag", tag);
+    }
+    if (sort) {
+      params.set("sort", sort);
+    }
+    if (order) {
+      params.set("order", order);
+    }
     return this.request<ServerBooksPageResponse>(
       `/api/library/books?${params.toString()}`
     );
+  }
+
+  static async getTags() {
+    return this.request<ServerBookTagsResponse>("/api/library/tags");
+  }
+
+  static async listAllBooks(options: Omit<ServerBooksQueryOptions, "page"> = {}) {
+    const pageSize = Math.min(options.pageSize || 200, 200);
+    let page = 1;
+    let total = 0;
+    const books: Book[] = [];
+
+    do {
+      const response = await this.getBooks({
+        ...options,
+        page,
+        pageSize,
+      });
+      books.push(...(response.items || []));
+      total = response.total || books.length;
+      page += 1;
+    } while (books.length < total);
+
+    return books;
   }
 
   static async getBook(key: string) {
@@ -184,9 +250,10 @@ class ServerLibrary {
       return cached;
     }
     const response = await fetch(
-      `${this.getBaseUrl()}/api/library/books/${key}/cover`,
+      `${this.getBaseUrl()}/api/library/books/${key}/cover?t=${Date.now()}`,
       {
         credentials: "include",
+        cache: "no-store",
         headers: this.getFallbackAuthHeaders(),
       }
     );
@@ -221,7 +288,7 @@ class ServerLibrary {
     if (cached) {
       return cached;
     }
-    const url = `${this.getBaseUrl()}/api/library/books/${key}/cover`;
+    const url = `${this.getBaseUrl()}/api/library/books/${key}/cover?t=${Date.now()}`;
     this.coverUrlCache.set(key, url);
     return url;
   }

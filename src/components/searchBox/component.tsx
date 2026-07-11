@@ -4,6 +4,7 @@ import { SearchBoxProps, SearchBoxState } from "./interface";
 import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
 import ConfigUtil from "../../utils/file/configUtil";
 import BookUtil from "../../utils/file/bookUtil";
+import ServerLibrary from "../../utils/storage/serverLibrary";
 
 class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
   private searchBoxRef: React.RefObject<HTMLInputElement>;
@@ -42,6 +43,12 @@ class SearchBox extends React.Component<SearchBoxProps, SearchBoxState> {
     }
   };
   handleGetSearchResults = async (keyword: string) => {
+    if (ServerLibrary.isEnabled() && this.props.tabMode !== "note" && this.props.tabMode !== "highlight") {
+      return await ServerLibrary.listAllBooks({
+        query: keyword,
+        pageSize: 100,
+      });
+    }
     let results =
       this.props.tabMode === "note"
         ? await ConfigUtil.searchNotesByKeyword(keyword, "", "note")

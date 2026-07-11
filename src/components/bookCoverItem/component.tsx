@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import "./bookCoverItem.css";
 import { BookCoverProps } from "./interface";
 import ActionDialog from "../dialogs/actionDialog";
@@ -53,10 +53,15 @@ const BookCoverItem: React.FC<BookCoverProps> = (props) => {
 
   const percentage = getPercentage();
 
-  var htmlString = props.book.description;
-  var div = document.createElement("div");
-  div.innerHTML = htmlString;
-  var textContent = div.textContent || div.innerText;
+  const textContent = useMemo(() => {
+    const htmlString = props.book.description || "";
+    return htmlString
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }, [props.book.description]);
 
   const actionProps = { left, top };
 

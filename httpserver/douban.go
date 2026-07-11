@@ -21,9 +21,9 @@ type doubanBookResult struct {
 }
 
 type doubanBookDetail struct {
-	ID         string   `json:"id"`
-	Author     []string `json:"author"`
-	Images     struct {
+	ID     string   `json:"id"`
+	Author []string `json:"author"`
+	Images struct {
 		Large string `json:"large"`
 	} `json:"images"`
 	Publisher string `json:"publisher"`
@@ -45,20 +45,24 @@ type doubanCacheEntry struct {
 }
 
 var (
-	doubanSearchResultRegex  = regexp.MustCompile(`(?s)<div class="result".*?<div class="title">.*?<a[^>]*onclick="([^"]+)"[^>]*>(.*?)</a>.*?</div>.*?<div class="subject-cast">(.*?)</div>.*?<div class="rating_nums">(.*?)</div>.*?<div class="pic">.*?<img[^>]*src="([^"]+)"`)
-	doubanSearchIDRegex      = regexp.MustCompile(`sid:\s*(\d+)`)
-	doubanBookTitleRegex     = regexp.MustCompile(`(?s)<h1>.*?<span[^>]*property="v:itemreviewed"[^>]*>(.*?)</span>.*?</h1>`)
-	doubanBookLargeImage     = regexp.MustCompile(`(?s)<a class="nbg"[^>]*href="([^"]+)"`)
-	doubanBookSmallImage     = regexp.MustCompile(`(?s)<a class="nbg"[^>]*>.*?<img[^>]*src="([^"]+)"`)
-	doubanBookRatingRegex    = regexp.MustCompile(`(?s)<strong[^>]*class="ll rating_num"[^>]*property="v:average"[^>]*>(.*?)</strong>`)
-	doubanBookSummaryRegex   = regexp.MustCompile(`(?s)<div class="indent" id="link-report">.*?<span class="all hidden">(.*?)</span>`)
-	doubanBookSummaryAlt     = regexp.MustCompile(`(?s)<div class="indent" id="link-report">.*?<span[^>]*property="v:summary"[^>]*>(.*?)</span>`)
-	doubanBookInfoRegex      = regexp.MustCompile(`(?s)<div id="info"[^>]*>(.*?)</div>`)
-	doubanBookTagStripper    = regexp.MustCompile(`(?s)<[^>]+>`)
-	doubanBookInfoPair       = regexp.MustCompile(`([^\n:：]+)[:：]\s*([^\n]+)`)
-	doubanBookSlashCleaner   = regexp.MustCompile(`\s*/\s*`)
-	doubanBookCache          = map[string]doubanCacheEntry{}
-	doubanBookCacheMutex     sync.RWMutex
+	doubanBookSearchData    = regexp.MustCompile(`(?s)window\.__DATA__\s*=\s*(\{.*?\});\s*window\.__USER__`)
+	doubanSearchResultRegex = regexp.MustCompile(`(?s)<div class="result".*?<div class="title">.*?<a[^>]*onclick="([^"]+)"[^>]*>(.*?)</a>.*?</div>.*?<div class="subject-cast">(.*?)</div>.*?<div class="rating_nums">(.*?)</div>.*?<div class="pic">.*?<img[^>]*src="([^"]+)"`)
+	doubanSearchIDRegex     = regexp.MustCompile(`sid:\s*(\d+)`)
+	doubanBookTitleRegex    = regexp.MustCompile(`(?s)<h1[^>]*>.*?<span[^>]*property="v:itemreviewed"[^>]*>(.*?)</span>.*?</h1>`)
+	doubanBookLargeImage    = regexp.MustCompile(`(?s)<a class="nbg"[^>]*href="([^"]+)"`)
+	doubanBookSmallImage    = regexp.MustCompile(`(?s)<a class="nbg"[^>]*>.*?<img[^>]*src="([^"]+)"`)
+	doubanBookRatingRegex   = regexp.MustCompile(`(?s)<strong[^>]*class="[^"]*rating_num[^"]*"[^>]*property="v:average"[^>]*>(.*?)</strong>`)
+	doubanBookSummaryRegex  = regexp.MustCompile(`(?s)<div class="indent" id="link-report">.*?<span class="all hidden">(.*?)</span>`)
+	doubanBookSummaryAlt    = regexp.MustCompile(`(?s)<div class="indent" id="link-report">.*?<span[^>]*property="v:summary"[^>]*>(.*?)</span>`)
+	doubanBookSummaryIntro  = regexp.MustCompile(`(?s)<div class="indent" id="link-report">.*?<div class="intro">(.*?)</div>`)
+	doubanBookInfoRegex     = regexp.MustCompile(`(?s)<div id="info"[^>]*>(.*?)</div>`)
+	doubanBookTagsSection   = regexp.MustCompile(`(?s)<div[^>]*id="db-tags-section"[^>]*>(.*?)</div>`)
+	doubanBookTagLink       = regexp.MustCompile(`(?s)<a[^>]*href="(?:https?://book\\.douban\\.com)?/tag/[^"]*"[^>]*>(.*?)</a>`)
+	doubanBookTagStripper   = regexp.MustCompile(`(?s)<[^>]+>`)
+	doubanBookInfoPair      = regexp.MustCompile(`([^\n:：]+)[:：]\s*([^\n]+)`)
+	doubanBookSlashCleaner  = regexp.MustCompile(`\s*/\s*`)
+	doubanBookCache         = map[string]doubanCacheEntry{}
+	doubanBookCacheMutex    sync.RWMutex
 )
 
 func fetchMetadataCandidates(name, author string) ([]metadataCandidate, error) {
@@ -123,6 +127,84 @@ func searchDoubanBooks(query string, count int) ([]metadataCandidate, error) {
 	}
 
 	client := &http.Client{Timeout: 15 * time.Second}
+	endpoint := "https://search.douban.com/book/subject_search?search_text=" + urlQueryEscape(query) + "&cat=1001"
+	resp, err := newDoubanRequest(client, endpoint)
+	if err != nil {
+		return searchDoubanBooksLegacy(client, query, count)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	htmlText := string(body)
+	results := parseDoubanSubjectSearchData(htmlText, count)
+	if len(results) > 0 {
+		return results, nil
+	}
+	return searchDoubanBooksLegacy(client, query, count)
+}
+
+func parseDoubanSubjectSearchData(htmlText string, count int) []metadataCandidate {
+	match := doubanBookSearchData.FindStringSubmatch(htmlText)
+	if len(match) < 2 {
+		return []metadataCandidate{}
+	}
+	var payload struct {
+		Items []struct {
+			ID       int64  `json:"id"`
+			Title    string `json:"title"`
+			URL      string `json:"url"`
+			Abstract string `json:"abstract"`
+			CoverURL string `json:"cover_url"`
+			TplName  string `json:"tpl_name"`
+			Rating   struct {
+				Value float64 `json:"value"`
+			} `json:"rating"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal([]byte(match[1]), &payload); err != nil {
+		return []metadataCandidate{}
+	}
+
+	results := make([]metadataCandidate, 0, len(payload.Items))
+	for _, item := range payload.Items {
+		if item.TplName != "search_subject" || item.ID == 0 {
+			continue
+		}
+		authors, publisher, pubdate := parseSubjectCast(item.Abstract)
+		rating := ""
+		if item.Rating.Value > 0 {
+			rating = fmt.Sprintf("%.1f", item.Rating.Value)
+		}
+		id := fmt.Sprintf("%d", item.ID)
+		sourceURL := strings.TrimSpace(item.URL)
+		if sourceURL == "" {
+			sourceURL = "https://book.douban.com/subject/" + id + "/"
+		}
+		results = append(results, metadataCandidate{
+			Key:         id,
+			Name:        strings.TrimSpace(item.Title),
+			Author:      strings.Join(authors, ", "),
+			Publisher:   publisher,
+			Description: "",
+			Cover:       strings.TrimSpace(item.CoverURL),
+			ISBN:        "",
+			DoubanID:    id,
+			PublishedAt: pubdate,
+			Rating:      rating,
+			Source:      "Douban",
+			SourceURL:   sourceURL,
+		})
+		if len(results) >= count {
+			break
+		}
+	}
+	return results
+}
+
+func searchDoubanBooksLegacy(client *http.Client, query string, count int) ([]metadataCandidate, error) {
 	endpoint := "https://www.douban.com/search?cat=1001&q=" + urlQueryEscape(query)
 	resp, err := newDoubanRequest(client, endpoint)
 	if err != nil {
@@ -264,6 +346,9 @@ func parseSubjectCast(raw string) ([]string, string, string) {
 			trimmed = append(trimmed, part)
 		}
 	}
+	if len(trimmed) >= 4 && isLikelyPrice(trimmed[len(trimmed)-1]) {
+		trimmed = trimmed[:len(trimmed)-1]
+	}
 	if len(trimmed) == 0 {
 		return []string{}, "", ""
 	}
@@ -293,6 +378,9 @@ func parseDoubanBookDetailHTML(id string, body string) metadataCandidate {
 	if summary == "" {
 		summary = firstSubmatch(doubanBookSummaryAlt, body)
 	}
+	if summary == "" {
+		summary = firstSubmatch(doubanBookSummaryIntro, body)
+	}
 	summary = cleanHTMLContent(summary)
 	infoHTML := firstSubmatch(doubanBookInfoRegex, body)
 	infoText := normalizeInfoText(infoHTML)
@@ -312,6 +400,7 @@ func parseDoubanBookDetailHTML(id string, body string) metadataCandidate {
 	if pubdate == "" {
 		pubdate = pickInfoValue(infoMap, "出版时间")
 	}
+	tags := extractDoubanTags(body)
 
 	return metadataCandidate{
 		Key:         id,
@@ -322,6 +411,7 @@ func parseDoubanBookDetailHTML(id string, body string) metadataCandidate {
 		Cover:       largeCover,
 		ISBN:        isbn,
 		DoubanID:    id,
+		Tags:        strings.Join(tags, ", "),
 		PublishedAt: pubdate,
 		Rating:      rating,
 		Source:      "Douban",
@@ -470,6 +560,34 @@ func normalizeInfoText(value string) string {
 	return strings.Join(cleaned, "\n")
 }
 
+func extractDoubanTags(body string) []string {
+	section := firstSubmatch(doubanBookTagsSection, body)
+	if section == "" {
+		return []string{}
+	}
+	matches := doubanBookTagLink.FindAllStringSubmatch(section, -1)
+	if len(matches) == 0 {
+		return []string{}
+	}
+	tags := make([]string, 0, len(matches))
+	seen := map[string]struct{}{}
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+		tag := cleanHTMLText(match[1])
+		if tag == "" {
+			continue
+		}
+		if _, ok := seen[tag]; ok {
+			continue
+		}
+		seen[tag] = struct{}{}
+		tags = append(tags, tag)
+	}
+	return tags
+}
+
 func pickInfoValue(values map[string]string, key string) string {
 	return strings.TrimSpace(values[key])
 }
@@ -483,6 +601,17 @@ func isLikelyPubdate(value string) bool {
 		return true
 	}
 	return strings.Contains(value, "-")
+}
+
+func isLikelyPrice(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	return strings.Contains(value, "元") ||
+		strings.Contains(strings.ToLower(value), "cny") ||
+		strings.Contains(value, "￥") ||
+		strings.Contains(value, "$")
 }
 
 func sanitizeMetadataKeyword(value string) string {

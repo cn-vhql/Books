@@ -15,7 +15,7 @@ services:
       STATIC_DIR: /app/build
       PORT: "8080"
     volumes:
-      - /vol1/app/Books/data/uploads:/app/uploads
+      - /vol1/data/Books/data/uploads:/app/uploads
     logging:
       driver: json-file
       options:

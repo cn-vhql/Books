@@ -127,13 +127,17 @@ export function handleNoteSortCode(noteSortCode: {
   return { type: "HANDLE_NOTE_SORT_CODE", payload: noteSortCode };
 }
 
-export function handleFetchBooks(page?: number, pageSize?: number) {
+export function handleFetchBooks(page?: number, pageSize?: number, tag?: string) {
   return async (dispatch: Dispatch) => {
     if (ServerLibrary.isEnabled()) {
       try {
         const booksPage = page || 1;
         const booksPerPage = pageSize || 24;
-        const response = await ServerLibrary.getBooks(booksPage, booksPerPage);
+        const response = await ServerLibrary.getBooks({
+          page: booksPage,
+          pageSize: booksPerPage,
+          tag: tag || "",
+        });
         dispatch(handleBooks((response.items || []) as BookModel[]));
         dispatch(handleBooksTotal(response.total || 0));
         dispatch(handleBooksPage(response.page || booksPage));

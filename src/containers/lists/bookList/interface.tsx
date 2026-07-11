@@ -18,7 +18,7 @@ export interface BookListProps extends RouteComponentProps<any> {
   noteSortCode: { sort: number; order: number };
   handleAddDialog: (isShow: boolean) => void;
   handleMode: (mode: string) => void;
-  handleFetchBooks: (page?: number, pageSize?: number) => void;
+  handleFetchBooks: (page?: number, pageSize?: number, tag?: string) => void;
   handleShelf: (shelfTitle: string) => void;
   handleDeleteDialog: (isShow: boolean) => void;
   handleLoadMore: (isLoadMore: boolean) => void;
@@ -32,4 +32,9 @@ export interface BookListState {
   fullBooksData: BookModel[];
   cardScale: number;
   readingStatusFilter: string;
+  tagFilter: string;
+  serverPage: number;
+  tagStats: { name: string; count: number }[];
+  taggedBooksCount: number;
+  totalTagBooks: number;
 }

@@ -26,6 +26,7 @@ FROM caddy:2
 COPY --from=web-builder /app/build/ /usr/share/caddy/
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY --from=server-builder /out/httpserver /app/httpserver
+COPY --from=ghcr.io/cxfksword/douban-api-rs:latest /usr/bin/douban-api-rs /app/douban-api-rs
 
 RUN mkdir -p /app/uploads && \
     chmod 755 /app/uploads && \

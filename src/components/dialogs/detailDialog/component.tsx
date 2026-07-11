@@ -31,6 +31,7 @@ class DetailDialog extends React.Component<
       metadataApplyingKey: "",
       activeTab: "overview",
       notes: [],
+      notesLoaded: false,
       isEditing: false,
     };
   }
@@ -54,8 +55,6 @@ class DetailDialog extends React.Component<
       .catch((error) => {
         console.error(error);
       });
-
-    this.loadNotes();
     if (this.props.isServerMode) {
       this.loadServerBookDetails();
     }
@@ -67,16 +66,20 @@ class DetailDialog extends React.Component<
         "notes"
       );
       notes.sort((a: any, b: any) => parseInt(b.key) - parseInt(a.key));
-      this.setState({ notes });
+      this.setState({ notes, notesLoaded: true });
     } catch (error) {
       console.error(error);
+      this.setState({ notesLoaded: true });
     }
   };
   loadServerBookDetails = async () => {
     try {
       const response = await ServerLibrary.getBook(this.props.currentBook.key);
+      const cover = await CoverUtil.getCover(response.book);
       this.setState({
         bookDetails: response.book,
+        cover,
+        isCoverExist: !!cover,
         permissions: response.permissions || [],
       });
     } catch (error) {
@@ -86,6 +89,13 @@ class DetailDialog extends React.Component<
   };
   handleClose = () => {
     this.props.handleDetailDialog(false);
+  };
+  handleTabChange = (tab: "overview" | "notes") => {
+    this.setState({ activeTab: tab }, () => {
+      if (tab === "notes" && !this.state.notesLoaded) {
+        this.loadNotes();
+      }
+    });
   };
   handleRead = () => {
     this.props.handleReadingBook(this.props.currentBook);
@@ -204,12 +214,15 @@ class DetailDialog extends React.Component<
         description: item.description || "",
         isbn: item.isbn || "",
         doubanId: item.doubanId || "",
+        tags: item.tags || "",
         publishedAt: item.publishedAt || "",
         source: item.source || "",
         sourceUrl: item.sourceUrl || "",
         rating: item.rating || "",
         cover: item.cover || prevState.bookDetails?.cover || "",
       },
+      cover: item.cover || prevState.cover,
+      isCoverExist: !!(item.cover || prevState.isCoverExist),
     }));
   };
   applyDoubanMetadata = async (item: any) => {
@@ -233,6 +246,7 @@ class DetailDialog extends React.Component<
         cover: payload.cover || item.cover || "",
         isbn: payload.isbn || item.isbn || "",
         doubanId: payload.doubanId || item.doubanId || "",
+        tags: payload.tags || item.tags || "",
         publishedAt: payload.publishedAt || item.publishedAt || "",
         rating: payload.rating || item.rating || "",
         source: payload.source || item.source || "Douban",
@@ -257,12 +271,19 @@ class DetailDialog extends React.Component<
       return;
     }
     try {
-      await ServerLibrary.updateBook({
+      const updatedBook = await ServerLibrary.updateBook({
         ...this.props.currentBook,
         ...book,
         permissions: this.state.permissions,
       } as any);
+      await CoverUtil.clearServerCachedCover(this.props.currentBook.key);
+      const updatedCover = await CoverUtil.getCover(updatedBook as any);
       toast.success("保存成功");
+      this.setState({
+        bookDetails: updatedBook as any,
+        cover: updatedCover,
+        isCoverExist: !!updatedCover,
+      });
       this.props.handleFetchBooks();
       await this.loadServerBookDetails();
     } catch (error) {
@@ -382,8 +403,12 @@ class DetailDialog extends React.Component<
                       <strong>{book.isbn || "-"}</strong>
                     </div>
                     <div className="detail-dialog-server-meta-item">
+                      <span>标签</span>
+                      <strong>{book.tags || "-"}</strong>
+                    </div>
+                    <div className="detail-dialog-server-meta-item">
                       <span>笔记</span>
-                      <strong>{notes.length}</strong>
+                      <strong>{this.state.notesLoaded ? notes.length : "-"}</strong>
                     </div>
                   </div>
                   <div className="detail-dialog-server-actions">
@@ -419,7 +444,7 @@ class DetailDialog extends React.Component<
                 className={`detail-dialog-server-tab ${
                   this.state.activeTab === "overview" ? "active" : ""
                 }`}
-                onClick={() => this.setState({ activeTab: "overview" })}
+                onClick={() => this.handleTabChange("overview")}
               >
                 概览
               </button>
@@ -428,7 +453,7 @@ class DetailDialog extends React.Component<
                 className={`detail-dialog-server-tab ${
                   this.state.activeTab === "notes" ? "active" : ""
                 }`}
-                onClick={() => this.setState({ activeTab: "notes" })}
+                onClick={() => this.handleTabChange("notes")}
               >
                 笔记
               </button>
@@ -437,7 +462,9 @@ class DetailDialog extends React.Component<
             <div className="detail-dialog-server-body">
               {this.state.activeTab === "notes" ? (
                 <div className="detail-dialog-server-notes">
-                  {notes.length > 0 ? (
+                  {!this.state.notesLoaded ? (
+                    <div className="detail-dialog-server-empty">加载中</div>
+                  ) : notes.length > 0 ? (
                     notes.map((note: any) => (
                       <div key={note.key} className="detail-dialog-server-note-card">
                         <div className="detail-dialog-server-note-top">
@@ -506,6 +533,14 @@ class DetailDialog extends React.Component<
                               )
                             }
                           />
+                          <input
+                            className="detail-dialog-server-input"
+                            value={book.tags || ""}
+                            placeholder="标签，多个请用逗号分隔"
+                            onChange={(event) =>
+                              this.updateBookField("tags", event.target.value)
+                            }
+                          />
                         </div>
                         <textarea
                           className="detail-dialog-server-textarea"
@@ -551,7 +586,7 @@ class DetailDialog extends React.Component<
                                     {item.source ? ` · ${item.source === "Douban" ? "豆瓣" : item.source}` : ""}
                                   </div>
                                   <div className="detail-dialog-server-result-extra">
-                                    {[item.publisher, item.publishedAt, item.rating ? `评分 ${item.rating}` : ""]
+                                    {[item.publisher, item.publishedAt, item.tags ? `标签 ${item.tags}` : "", item.rating ? `评分 ${item.rating}` : ""]
                                       .filter(Boolean)
                                       .join(" · ")}
                                   </div>
@@ -572,7 +607,7 @@ class DetailDialog extends React.Component<
                                 >
                                   {this.state.metadataApplyingKey === item.key
                                     ? "应用中"
-                                    : "应用此条"}
+                                    : "应用"}
                                 </button>
                               </div>
                             ))}
