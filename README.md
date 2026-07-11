@@ -1,38 +1,262 @@
 # Books
 
-`Books` 是基于 `koodo-reader` 改造的中心化书库服务，保留原本优秀的网页阅读体验，同时把书籍、封面、书签、笔记、阅读进度和部分管理能力统一收敛到服务端。
+Books 是一个可以自己部署的网页书库。
 
-当前仓库面向自托管场景，适合家庭书库、小团队内部书库，或者替代单机版 Koodo Web 的集中部署。
+你可以把电子书都放在服务器上，然后在浏览器里登录阅读、管理、下载。它基于 Koodo Reader 改造，保留了 Koodo 的阅读体验，同时增加了服务端书库、多用户、图书权限、豆瓣元信息、封面本地保存、标签筛选等功能。
 
-## 当前能力
+适合这些场景：
 
-- 服务端统一存储书籍、封面和书库配置
-- Web 端登录后访问书库
-- 管理员上传书籍、维护账户、分配书籍可见范围
-- 全部图书分页加载，默认按导入顺序倒序展示
-- 顶部标签筛选，展示每个标签下的书籍数量
-- 书籍详情弹窗，支持封面、简介、下载、阅读、笔记切换
-- 内置豆瓣元信息获取接口，支持同步标题、作者、出版社、ISBN、简介、评分、标签和封面
-- 豆瓣封面会下载并替换为本地封面文件，避免前端长期依赖豆瓣图片地址
-- 支持 OPDS
-- 支持明暗主题切换
+- 家里 NAS 上放一个统一书库
+- 多台电脑、手机、平板共用一个网页阅读入口
+- 管理员上传书籍，普通用户只看自己有权限看的书
+- 从豆瓣补全书名、作者、简介、标签、评分、封面
 
-## 目录与数据
+## 已有镜像
 
-运行时数据默认存放在挂载目录 `/app/uploads`，当前项目默认使用本地目录：
+已经推送到阿里云镜像仓库：
 
-```text
-./data/uploads
-├── book/
-├── cover/
-└── config/
+```bash
+registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
 ```
 
-其中：
+拉取镜像：
 
-- `book/`：电子书文件
-- `cover/`：封面文件
-- `config/`：书库配置、笔记、阅读进度及元数据数据库
+```bash
+docker pull registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
+```
+
+镜像信息：
+
+- 镜像地址：`registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6`
+- 对应代码提交：`bd406af6 Enhance centralized Books library`
+- 镜像 digest：`sha256:de361422a4bf23d2e2b188ef29d11ad6fea4b0af9c39bc80ed5e9d49c2bd31c3`
+
+## 最简单运行方式
+
+先创建数据目录：
+
+```bash
+mkdir -p /vol1/data/Books/data/uploads
+```
+
+启动容器：
+
+```bash
+docker run -d \
+  --name koodo-centralized \
+  --restart unless-stopped \
+  -p 18083:8080 \
+  -e SERVER_USERNAME=admin \
+  -e SERVER_PASSWORD='ChangeMe_2026!' \
+  -e ENABLE_HTTP_SERVER=true \
+  -e ENABLE_LIBRARY_SERVER=true \
+  -e ENABLE_OPDS=true \
+  -e STATIC_DIR=/app/build \
+  -e PORT=8080 \
+  -v /vol1/data/Books/data/uploads:/app/uploads \
+  registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
+```
+
+打开浏览器访问：
+
+```text
+http://服务器IP:18083
+```
+
+默认账号：
+
+```text
+用户名：admin
+密码：ChangeMe_2026!
+```
+
+OPDS 地址：
+
+```text
+http://服务器IP:18083/opds
+```
+
+## 数据放在哪里
+
+容器里统一使用：
+
+```text
+/app/uploads
+```
+
+推荐挂载到宿主机：
+
+```text
+/vol1/data/Books/data/uploads
+```
+
+目录大概长这样：
+
+```text
+/vol1/data/Books/data/uploads
+├── book/      # 书籍文件
+├── cover/     # 封面文件
+└── config/    # 数据库、配置、笔记、阅读进度
+```
+
+只要这个目录不删，重建容器后书库数据还在。
+
+## Docker Compose 运行
+
+仓库里已经带了 `docker-compose.yml`。
+
+启动：
+
+```bash
+docker compose up -d
+```
+
+如果要重新构建后启动：
+
+```bash
+docker compose up --build -d
+```
+
+停止：
+
+```bash
+docker compose down
+```
+
+查看日志：
+
+```bash
+docker logs -f koodo-centralized
+```
+
+## 自己构建镜像
+
+在项目根目录执行：
+
+```bash
+docker build -t koodo-centralized:local .
+```
+
+构建完成后运行本地镜像：
+
+```bash
+docker run -d \
+  --name koodo-centralized \
+  --restart unless-stopped \
+  -p 18083:8080 \
+  -e SERVER_USERNAME=admin \
+  -e SERVER_PASSWORD='ChangeMe_2026!' \
+  -e ENABLE_HTTP_SERVER=true \
+  -e ENABLE_LIBRARY_SERVER=true \
+  -e ENABLE_OPDS=true \
+  -e STATIC_DIR=/app/build \
+  -e PORT=8080 \
+  -v /vol1/data/Books/data/uploads:/app/uploads \
+  koodo-centralized:local
+```
+
+如果 Docker Hub 网络不稳定，可以用本地打包脚本：
+
+```bash
+chmod +x scripts/package-local-image.sh
+./scripts/package-local-image.sh
+```
+
+生成的镜像名也是：
+
+```text
+koodo-centralized:local
+```
+
+## 推送镜像到阿里云
+
+先登录阿里云镜像仓库：
+
+```bash
+docker login --username=你的阿里云用户名 registry.cn-hangzhou.aliyuncs.com
+```
+
+给本地镜像打标签：
+
+```bash
+docker tag koodo-centralized:local registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:你的版本号
+```
+
+推送：
+
+```bash
+docker push registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:你的版本号
+```
+
+例子：
+
+```bash
+docker tag koodo-centralized:local registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
+docker push registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
+```
+
+## 更新容器
+
+如果已经有旧容器，先停止并删除：
+
+```bash
+docker stop koodo-centralized
+docker rm koodo-centralized
+```
+
+拉新镜像：
+
+```bash
+docker pull registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
+```
+
+再按“最简单运行方式”重新启动。
+
+只要挂载目录还是：
+
+```text
+/vol1/data/Books/data/uploads:/app/uploads
+```
+
+原来的书籍、封面、账号、笔记、阅读进度都会保留。
+
+## 主要功能
+
+- 网页登录访问书库
+- 管理员上传书籍
+- 多用户账号管理
+- 不同用户可以看到不同书籍
+- 书籍详情页支持封面、简介、下载、阅读、笔记
+- 首页支持分页，书多时不会一次性加载全部
+- 首页支持标签筛选，并显示标签下书籍数量
+- 默认按导入顺序倒序展示，新导入的书在前面
+- 支持明暗主题切换
+- 支持 OPDS
+- 支持豆瓣搜索元信息
+- 保存豆瓣元信息时，会把豆瓣封面下载成本地封面
+
+## 豆瓣元信息
+
+在书籍详情页点击“豆瓣”，可以搜索豆瓣元信息。
+
+可以同步：
+
+- 书名
+- 作者
+- 出版社
+- ISBN
+- 简介
+- 标签
+- 评分
+- 封面
+
+封面不会长期使用豆瓣外链。保存后，后端会下载图片到：
+
+```text
+/app/uploads/cover
+```
+
+如果豆瓣图片直连失败，镜像里已经内置 `douban-api-rs` 作为本地兜底代理，不需要再单独启动 `douban-api-rs` 容器。
 
 ## 本地开发
 
@@ -49,180 +273,63 @@ pnpm install
 pnpm start
 ```
 
-单独启动 Go 服务：
+构建前端：
+
+```bash
+pnpm build
+```
+
+启动 Go 后端：
 
 ```bash
 cd httpserver
 STATIC_DIR=../build ENABLE_HTTP_SERVER=true ENABLE_LIBRARY_SERVER=true ENABLE_OPDS=true PORT=8080 go run .
 ```
 
-构建产物：
+测试 Go 后端：
 
 ```bash
-pnpm build
 cd httpserver
-go build ./...
+go test ./...
 ```
 
-## 容器构建
+## 常用排查命令
 
-### 方式一：直接使用 Dockerfile
-
-适合本机已经具备基础镜像缓存，或者网络可以访问 Docker Hub/GHCR 的场景：
+查看容器是否运行：
 
 ```bash
-docker build -t koodo-centralized:local .
+docker ps | grep koodo-centralized
 ```
 
-标准镜像会把 `douban-api-rs` 静态二进制复制进 Books 镜像，用于豆瓣图片代理兜底。运行时不需要再单独启动 `douban-api-rs` 容器。
-
-### 方式二：宿主机本地打包后构建运行镜像
-
-适合 Docker Hub 拉取不稳定时使用，不依赖在 Docker build 阶段拉取 `node`、`golang`、`caddy`：
+查看日志：
 
 ```bash
-chmod +x scripts/package-local-image.sh
-./scripts/package-local-image.sh
+docker logs -f koodo-centralized
 ```
 
-默认镜像名：
-
-```text
-koodo-centralized:local
-```
-
-### 方式三：直接拉取阿里云镜像
-
-当前已推送预构建镜像到阿里云 ACR：
+进入书库数据目录：
 
 ```bash
-docker pull registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
+cd /vol1/data/Books/data/uploads
 ```
 
-镜像信息：
-
-- 镜像地址：`registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6`
-- 对应代码提交：`bd406af6 Enhance centralized Books library`
-- 远端 digest：`sha256:de361422a4bf23d2e2b188ef29d11ad6fea4b0af9c39bc80ed5e9d49c2bd31c3`
-- 本地镜像 ID：`8cb672f5fc84`
-
-## 运行容器
-
-当前部署建议与现网保持一致：
+查看封面文件：
 
 ```bash
-mkdir -p /vol1/data/Books/data/uploads
-
-docker run -d \
-  --name koodo-centralized \
-  -p 18083:8080 \
-  -e SERVER_USERNAME=admin \
-  -e SERVER_PASSWORD='ChangeMe_2026!' \
-  -e ENABLE_HTTP_SERVER=true \
-  -e ENABLE_LIBRARY_SERVER=true \
-  -e ENABLE_OPDS=true \
-  -e STATIC_DIR=/app/build \
-  -e PORT=8080 \
-  -v /vol1/data/Books/data/uploads:/app/uploads \
-  --log-opt max-size=100m \
-  --log-opt max-file=5 \
-  registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
+ls -lh /vol1/data/Books/data/uploads/cover
 ```
-
-如果使用本地构建镜像，将最后一行替换为 `koodo-centralized:local`。
-
-访问地址：
-
-- 书库地址：`http://<服务器IP>:18083`
-- OPDS：`http://<服务器IP>:18083/opds`
-
-## Docker Compose
-
-仓库内的 `docker-compose.yml` 已按当前部署方式调整，可直接使用：
-
-```bash
-docker compose up --build -d
-```
-
-默认映射：
-
-- 宿主机端口：`18083`
-- 数据目录：`/vol1/data/Books/data/uploads`
-- 重启策略：`unless-stopped`
-
-## 内置元信息能力
-
-当前元信息查询已经内置到 `Books` 服务中，不再依赖外部 `douban-api-rs` 容器。
-
-接口：
-
-- `GET /api/library/metadata?name=书名&author=作者`
-- `GET /api/library/metadata?source=Douban&key=条目ID`
-- `GET /api/library/metadata?isbn=ISBN`
-
-前端书籍详情页的“豆瓣”按钮会直接调用本服务接口。
-
-保存豆瓣元信息时，如果返回了封面地址，后端会执行以下流程：
-
-1. 优先直接下载远程封面。
-2. 如果豆瓣图片服务对 Go 客户端返回反爬页面，自动拉起镜像内置的 `/app/douban-api-rs`，通过本地 `127.0.0.1:20050/proxy` 兜底下载图片。
-3. 只有确认内容是真实图片后才写入 `/app/uploads/cover`。
-4. 数据库中的 `cover` 字段会更新为本地封面文件名，例如 `1783768513065.jpg`。
-
-可选环境变量：
-
-- `DOUBAN_IMAGE_PROXY_URL`：覆盖默认代理地址，默认 `http://127.0.0.1:20050`
-- `DOUBAN_IMAGE_PROXY_BINARY`：覆盖内置代理二进制路径，默认 `/app/douban-api-rs`
-
-## 图书列表与标签
-
-全部图书使用分页接口加载，避免一次性拉取全部书籍造成首页卡顿。
-
-相关接口：
-
-- `GET /api/library/books?page=1&pageSize=27`
-- `GET /api/library/books?page=1&pageSize=27&tag=科幻`
-- `GET /api/library/tags`
-
-展示规则：
-
-- 卡片模式默认每页 `27` 本，约为 `3 行 * 9 列`
-- 列表模式默认每页 `10` 本
-- 封面模式默认每页 `12` 本，约为 `3 行 * 4 列`
-- 默认排序为导入顺序倒序，新导入书籍优先展示
-- 标签筛选只展示标签名称和数量，选中后保持低饱和度主题样式
-
-## 书库维护
-
-### 重复书籍去重
-
-当前书库支持按“书名 + 作者”归一化后进行重复书籍清理，现行规则：
-
-- 优先保留 `MOBI`
-- 没有 `MOBI` 时，保留元信息更完整的记录
-- 删除重复记录对应的书籍文件、封面文件，以及关联的权限/笔记/书签/阅读位置记录
-
-执行去重前建议先备份：
-
-```bash
-mkdir -p /vol1/data/Books/data/backups
-cp /vol1/data/Books/data/uploads/config/books.db /vol1/data/Books/data/backups/books.db.$(date +%Y%m%d-%H%M%S)
-cp /vol1/data/Books/data/uploads/config/library.db /vol1/data/Books/data/backups/library.db.$(date +%Y%m%d-%H%M%S)
-```
-
-去重完成后，建议重建容器并重新加载书库页面，确保前端与去重后的 `books.db` 保持一致。
 
 ## 关键文件
 
-- `httpserver/main.go`：HTTP 服务入口
-- `httpserver/library.go`：中心化书库接口
-- `httpserver/douban.go`：内置元信息抓取
-- `src/utils/storage/serverLibrary.ts`：前端服务端书库桥接
-- `src/utils/storage/serverConfigSync.ts`：服务端配置同步
-- `Dockerfile`：标准镜像构建
-- `scripts/package-local-image.sh`：本地离线打包脚本
+- `Dockerfile`：构建镜像
+- `docker-compose.yml`：Compose 启动配置
+- `httpserver/library.go`：服务端书库接口
+- `httpserver/douban.go`：豆瓣元信息获取
+- `src/utils/storage/serverLibrary.ts`：前端调用服务端书库
+- `src/components/dialogs/detailDialog/component.tsx`：书籍详情页
 
-## 说明
+## 注意事项
 
-- 当前仓库已经明显偏离上游 `koodo-reader` 的原始产品定位，后续应把它视为独立的 `Books` 服务维护。
-- 如果要继续增强多用户隔离、批量元数据治理、采集源管理，建议下一步把账户和图书权限模型继续从前端状态下沉到后端数据库。
+- 一定要挂载 `/app/uploads`，否则容器删除后数据也会丢。
+- 管理员默认密码建议部署后尽快修改。
+- 当前项目已经不是原版 Koodo Reader，而是面向自托管中心化书库的 Books。
