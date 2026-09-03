@@ -5,17 +5,21 @@ services:
     container_name: koodo-centralized
     restart: unless-stopped
     ports:
+      # 宿主机 18083 -> 容器 8080。浏览器访问 http://你的IP:18083
       - "18083:8080"
     environment:
       SERVER_USERNAME: ${SERVER_USERNAME:-admin}
-      SERVER_PASSWORD: ${SERVER_PASSWORD:-ChangeMe_2026!}
+      # 必填，未设置会拒绝启动。可在 .env 里写 SERVER_PASSWORD=你的强密码
+      SERVER_PASSWORD: ${SERVER_PASSWORD:?Set SERVER_PASSWORD in the environment before starting Books}
       ENABLE_HTTP_SERVER: "true"
       ENABLE_LIBRARY_SERVER: "true"
       ENABLE_OPDS: "true"
       STATIC_DIR: /app/build
       PORT: "8080"
     volumes:
-      - /vol1/data/Books/data/uploads:/app/uploads
+      # 你的书库数据目录：冒号左边是宿主机路径，改成你自己想放的地方即可。
+      # 默认 ./data/uploads，会创建在 docker-compose.yml 所在目录下。
+      - ${BOOKS_DATA_DIR:-./data/uploads}:/app/uploads
     logging:
       driver: json-file
       options:

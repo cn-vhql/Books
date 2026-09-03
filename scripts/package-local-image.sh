@@ -39,8 +39,6 @@ ENV ENABLE_LIBRARY_SERVER=true
 ENV ENABLE_OPDS=true
 ENV STATIC_DIR=/app/build
 ENV PORT=8080
-ENV SERVER_USERNAME=admin
-ENV SERVER_PASSWORD=securePass123
 EXPOSE 8080 7200
 VOLUME ["/app/uploads"]
 ENTRYPOINT ["/app/httpserver"]
@@ -56,6 +54,6 @@ echo "  mkdir -p ${UPLOADS_DIR}"
 echo "  docker run -d --name koodo-centralized \\"
 echo "    -p 8080:8080 \\"
 echo "    -e SERVER_USERNAME=admin \\"
-echo "    -e SERVER_PASSWORD=change-this-password \\"
+echo '    -e SERVER_PASSWORD="${SERVER_PASSWORD}" \\'
 echo "    -v ${UPLOADS_DIR}:/app/uploads \\"
 echo "    ${IMAGE_TAG}"

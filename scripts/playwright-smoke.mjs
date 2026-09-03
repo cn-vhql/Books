@@ -2,11 +2,15 @@ import { chromium } from "playwright";
 
 const baseUrl = process.env.KOODO_BASE_URL || "http://127.0.0.1:18083";
 const username = process.env.KOODO_USERNAME || "admin";
-const password = process.env.KOODO_PASSWORD || "ChangeMe_2026!";
+const password = process.env.KOODO_PASSWORD;
 const bookName = process.env.KOODO_BOOK_NAME || "";
 const bookKey = process.env.KOODO_BOOK_KEY || "";
 const bookFormat = (process.env.KOODO_BOOK_FORMAT || "").toLowerCase();
 const bookTitle = process.env.KOODO_BOOK_TITLE || "";
+
+if (!password) {
+  throw new Error("KOODO_PASSWORD must be set before running the smoke test");
+}
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({

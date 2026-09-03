@@ -54,25 +54,27 @@ func init() {
 	port = getEnv("PORT", "8080")
 	serverEnabled = os.Getenv("ENABLE_HTTP_SERVER") == "true"
 
-	// Password: Docker secret > env > default
-	secretFile := getEnv("SERVER_PASSWORD_FILE", "my_secret")
+	// Password: Docker secret > environment variable. Never use a built-in password.
+	secretFile := getEnv("SERVER_PASSWORD_FILE", "")
 	password := getDockerSecret(secretFile)
-	source := "Docker Secret"
-	if password == "" {
-		password = os.Getenv("SERVER_PASSWORD")
-		source = "environment variable (less secure)"
+	source := ""
+	if password != "" {
+		source = "Docker Secret"
 	}
 	if password == "" {
-		password = "securePass123"
-		source = "default"
+		password = os.Getenv("SERVER_PASSWORD")
+		if password != "" {
+			source = "environment variable (less secure)"
+		}
+	}
+	if password == "" {
+		log.Fatal("SERVER_PASSWORD or SERVER_PASSWORD_FILE must be set; refusing to start with a default password")
 	}
 	switch source {
 	case "Docker Secret":
 		log.Println("Using password from Docker Secret")
 	case "environment variable (less secure)":
 		log.Println("Warning: Using password from environment variable (less secure)")
-	default:
-		log.Println("Warning: Using default password. Set Docker Secret or SERVER_PASSWORD environment variable for production.")
 	}
 
 	credentials.username = getEnv("SERVER_USERNAME", "admin")

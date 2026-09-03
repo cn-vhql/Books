@@ -1,335 +1,247 @@
-# Books
+<div align="center">
 
-Books 是一个可以自己部署的网页书库。
+# 📚 Books
 
-你可以把电子书都放在服务器上，然后在浏览器里登录阅读、管理、下载。它基于 Koodo Reader 改造，保留了 Koodo 的阅读体验，同时增加了服务端书库、多用户、图书权限、豆瓣元信息、封面本地保存、标签筛选等功能。
+**一个可以自己部署的开源网页书库**
+
+基于 [Koodo Reader](https://github.com/koodo-reader/koodo-reader) 改造，保留顶级阅读体验，新增**中心化书库 / 多用户权限 / 豆瓣元信息 / 本地封面**。用 Docker 一键部署，几分钟就能把你所有的电子书“搬上云”。
+
+[![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+[![基于](https://img.shields.io/badge/基于-Koodo%20Reader-green)](https://github.com/koodo-reader/koodo-reader)
+[![部署](https://img.shields.io/badge/部署-Docker-blue)](https://www.docker.com/)
+
+</div>
+
+---
+
+## 这是什么？
+
+Books 是一个**自托管的网页书库**：你把自己的电子书放在服务器上，然后在浏览器里登录，就能**阅读、管理、下载**。
+
+它把 Koodo Reader 的阅读内核（目录、笔记、高亮、翻页、多主题）搬到了网页上，额外加了服务端书库、多用户、图书权限、豆瓣元信息、封面本地保存、标签筛选等功能。
+
+> **English** — Books is a self-hosted, open-source web book library built on top of [Koodo Reader](https://github.com/koodo-reader/koodo-reader). Keep all your ebooks on your own server, then read, manage and download them from any browser. It adds a centralized library, multi-user permissions, Douban metadata and local covers on top of Koodo's polished reading experience.
+
+## 为什么用 Books？（可以取代 talebook）
+
+如果你之前用的是 [talebook](https://github.com/talebook/talebook) 或者 Calibre 的网页版，Books 会是一个更现代、更顺手的选择：
+
+| 对比 | talebook / Calibre-web | **Books** |
+| --- | --- | --- |
+| 阅读体验 | 一般 | 细腻（Koodo 内核、翻页/笔记/高亮/多主题） |
+| 安装依赖 | 需要 Calibre，较重 | 单一 Docker 镜像，轻量 |
+| 界面 | 偏传统 | 现代、清爽、支持明暗主题 |
+| 多用户 | 需要额外配置 | 内置，支持按用户控制权限 |
+| 元信息 | 手动 | 一键从豆瓣补齐书名/作者/评分/封面 |
 
 适合这些场景：
 
-- 家里 NAS 上放一个统一书库
-- 多台电脑、手机、平板共用一个网页阅读入口
-- 管理员上传书籍，普通用户只看自己有权限看的书
-- 从豆瓣补全书名、作者、简介、标签、评分、封面
+- 🏠 家中 NAS 上放一个统一书库
+- 💻 多台电脑、手机、平板共用一个网页阅读入口
+- 👥 管理员上传图书，普通用户只看自己有权限的书
+- 📖 阅读进度、笔记、高亮统一管理，换个设备也能接着看
 
-## 已有镜像
+## 截图
 
-已经推送到阿里云镜像仓库：
+| 书库首页 | 书籍详情（豆瓣元信息） |
+| --- | --- |
+| ![书库首页](docs/screenshots/home.png) | ![书籍详情](docs/screenshots/book-detail.png) |
+
+| 阅读界面 | 设置 |
+| --- | --- |
+| ![阅读界面](docs/screenshots/reader.png) | ![设置](docs/screenshots/settings.png) |
+
+---
+
+## 🚀 快速开始（Docker，小白友好）
+
+> 只需要装好 [Docker](https://www.docker.com/)（自带 `docker compose`）。下面三步就能跑起来。
+
+### 方式一：Docker Compose（最推荐⭐）
+
+在项目根目录执行：
 
 ```bash
-registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
+# 1. 设置登录密码（写到 .env，不会上传到 github，git 已忽略）
+echo "SERVER_PASSWORD=在这里填一个强密码" > .env
+
+# 2. 启动
+docker compose up -d
 ```
 
-拉取镜像：
+> - 没有设置 `SERVER_PASSWORD` 的话，服务会**拒绝启动**——这是故意的，防止你用一个“默认密码”裸奔。
+> - 首次 `docker compose up -d` 会**自动从源码构建镜像**（需要几分钟、且能访问网络下载基础镜像）。以后重新起来就很快。
+> - 如果以前设过密码、想换，改 `.env` 再 `docker compose up -d` 即可。
 
-```bash
-docker pull registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
+启动后，用浏览器打开：
+
+```text
+http://你的服务器IP:18083
 ```
 
-镜像信息：
+- 默认账号：`admin`
+- 密码：就是你刚才设置的 `SERVER_PASSWORD`
 
-- 镜像地址：`registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6`
-- 对应代码提交：`bd406af6 Enhance centralized Books library`
-- 镜像 digest：`sha256:de361422a4bf23d2e2b188ef29d11ad6fea4b0af9c39bc80ed5e9d49c2bd31c3`
+> 你的书库数据默认存在 `./data/uploads`（就在 docker-compose.yml 所在目录）。想换地方，在 `.env` 里写：
+> ```
+> BOOKS_DATA_DIR=/你想放的绝对路径
+> ```
 
-## 最简单运行方式
+### 方式二：自己构建 + docker run（手动版）
 
-先创建数据目录：
-
-```bash
-mkdir -p /vol1/data/Books/data/uploads
-```
-
-启动容器：
+不想用 compose 的话，先构建镜像再运行：
 
 ```bash
+# 1. 构建镜像（首次要几分钟，并需能访问网络下载基础镜像）
+docker build -t koodo-centralized:local .
+
+# 2. 运行
 docker run -d \
-  --name koodo-centralized \
+  --name books \
   --restart unless-stopped \
   -p 18083:8080 \
   -e SERVER_USERNAME=admin \
-  -e SERVER_PASSWORD='ChangeMe_2026!' \
+  -e SERVER_PASSWORD="在这里填一个强密码" \
   -e ENABLE_HTTP_SERVER=true \
   -e ENABLE_LIBRARY_SERVER=true \
   -e ENABLE_OPDS=true \
   -e STATIC_DIR=/app/build \
   -e PORT=8080 \
-  -v /vol1/data/Books/data/uploads:/app/uploads \
-  registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
+  -v "$(pwd)/data/uploads:/app/uploads" \
+  koodo-centralized:local
 ```
 
-打开浏览器访问：
+> 记得把 `$(pwd)/data/uploads` 换成一个你真正想放书库的目录。
 
-```text
-http://服务器IP:18083
+---
+
+## 🔐 环境变量
+
+用 Docker Compose 时常用到的配置：
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `SERVER_USERNAME` | `admin` | 登录用户名 |
+| `SERVER_PASSWORD` | **无（必填）** | 登录密码；未设置会拒绝启动 |
+| `SERVER_PASSWORD_FILE` | 空 | 改为 Docker Secret 文件名，密码改从 `/run/secrets/<名>` 读取（见下方进阶） |
+| `ENABLE_HTTP_SERVER` | `true`（镜像内置） | 是否开启图书文件服务/上传下载 |
+| `ENABLE_LIBRARY_SERVER` | `true` | 是否开启中心化书库服务 |
+| `ENABLE_OPDS` | `true`（镜像内置） | 是否开启 OPDS 目录（需同时开启 HTTP server） |
+| `ENABLE_KOREADER_SERVER` | `false` | 是否开启 KOReader 同步服务 |
+| `ENABLE_KOREADER_REGISTRATION` | `true` | 是否允许 KOReader 注册新设备 |
+| `PORT` | `8080` | Go 服务监听端口（容器内） |
+| `STATIC_DIR` | `/app/build` | 前端构建产物目录 |
+| `KOREADER_PORT` | `7200` | KOReader 同步端口 |
+| `ALLOWED_ORIGINS` | 空（全放行） | 允许的跨域来源，逗号分隔；有安全需求建议设置 |
+| `BOOKS_DATA_DIR` | `./data/uploads` | （仅 compose）书库数据在宿主机上的存放目录 |
+
+> 进阶：想让密码更安全，可以用 Docker Secret 而不是环境变量，见下面的「进阶」小节。
+
+---
+
+## 🔒 进阶：用 Docker Secret 管理密码（可选）
+
+默认把密码写进环境变量（`docker ps` 能看到）。如果你不想这样，可以用 Docker Secret：
+
+```bash
+# 1. 生成密码文件（内容就是你的强密码）
+echo "你的强密码" > my_secret.txt
+
+# 2. 用带 Secret 的 compose 启动
+docker compose -f docker-compose-secret.yml up -d
 ```
 
-默认账号：
+这样密码会从 `/run/secrets/books_admin_password` 读取，不会出现在环境变量里。`my_secret.txt` 已被 git 忽略，不会被提交。
 
-```text
-用户名：admin
-密码：ChangeMe_2026!
-```
+---
 
-OPDS 地址：
+## 💾 数据放在哪里
 
-```text
-http://服务器IP:18083/opds
-```
-
-## 数据放在哪里
-
-容器里统一使用：
+容器里统一用一个目录：
 
 ```text
 /app/uploads
 ```
 
-推荐挂载到宿主机：
+推荐挂载到宿主机（compose 默认映射到 `./data/uploads`）。目录结构大概是这样：
 
 ```text
-/vol1/data/Books/data/uploads
-```
-
-目录大概长这样：
-
-```text
-/vol1/data/Books/data/uploads
+你设置的数据目录/
 ├── book/      # 书籍文件
 ├── cover/     # 封面文件
 └── config/    # 数据库、配置、笔记、阅读进度
 ```
 
-只要这个目录不删，重建容器后书库数据还在。
+**只要这个目录不删，重建容器、升级版本后，书、账号、笔记、进度都还在。**
 
-## Docker Compose 运行
+---
 
-仓库里已经带了 `docker-compose.yml`。
+## 📖 OPDS（给第三方阅读器用）
 
-启动：
+支持 OPDS 目录，能让 iOS/Android 上的阅读器（如 Apple Books、KOReader、Legado 等）直接浏览你的书库：
+
+```text
+http://你的服务器IP:18083/opds
+```
+
+---
+
+## 🔄 如何更新
 
 ```bash
+# 停止并删除旧容器（数据不会丢，只要你不删数据目录）
+docker compose down
+
+# 重新拉/构建并启动
 docker compose up -d
 ```
 
-如果要重新构建后启动：
+只要数据目录还在，升级后书库内容原样保留。
+
+---
+
+## 🛠 本地开发（给想改代码的朋友）
 
 ```bash
-docker compose up --build -d
-```
-
-停止：
-
-```bash
-docker compose down
-```
-
-查看日志：
-
-```bash
-docker logs -f koodo-centralized
-```
-
-## 自己构建镜像
-
-在项目根目录执行：
-
-```bash
-docker build -t koodo-centralized:local .
-```
-
-构建完成后运行本地镜像：
-
-```bash
-docker run -d \
-  --name koodo-centralized \
-  --restart unless-stopped \
-  -p 18083:8080 \
-  -e SERVER_USERNAME=admin \
-  -e SERVER_PASSWORD='ChangeMe_2026!' \
-  -e ENABLE_HTTP_SERVER=true \
-  -e ENABLE_LIBRARY_SERVER=true \
-  -e ENABLE_OPDS=true \
-  -e STATIC_DIR=/app/build \
-  -e PORT=8080 \
-  -v /vol1/data/Books/data/uploads:/app/uploads \
-  koodo-centralized:local
-```
-
-如果 Docker Hub 网络不稳定，可以用本地打包脚本：
-
-```bash
-chmod +x scripts/package-local-image.sh
-./scripts/package-local-image.sh
-```
-
-生成的镜像名也是：
-
-```text
-koodo-centralized:local
-```
-
-## 推送镜像到阿里云
-
-先登录阿里云镜像仓库：
-
-```bash
-docker login --username=你的阿里云用户名 registry.cn-hangzhou.aliyuncs.com
-```
-
-给本地镜像打标签：
-
-```bash
-docker tag koodo-centralized:local registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:你的版本号
-```
-
-推送：
-
-```bash
-docker push registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:你的版本号
-```
-
-例子：
-
-```bash
-docker tag koodo-centralized:local registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
-docker push registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
-```
-
-## 更新容器
-
-如果已经有旧容器，先停止并删除：
-
-```bash
-docker stop koodo-centralized
-docker rm koodo-centralized
-```
-
-拉新镜像：
-
-```bash
-docker pull registry.cn-hangzhou.aliyuncs.com/qiang2024_docker/books:bd406af6
-```
-
-再按“最简单运行方式”重新启动。
-
-只要挂载目录还是：
-
-```text
-/vol1/data/Books/data/uploads:/app/uploads
-```
-
-原来的书籍、封面、账号、笔记、阅读进度都会保留。
-
-## 主要功能
-
-- 网页登录访问书库
-- 管理员上传书籍
-- 多用户账号管理
-- 不同用户可以看到不同书籍
-- 书籍详情页支持封面、简介、下载、阅读、笔记
-- 首页支持分页，书多时不会一次性加载全部
-- 首页支持标签筛选，并显示标签下书籍数量
-- 默认按导入顺序倒序展示，新导入的书在前面
-- 支持明暗主题切换
-- 支持 OPDS
-- 支持豆瓣搜索元信息
-- 保存豆瓣元信息时，会把豆瓣封面下载成本地封面
-
-## 豆瓣元信息
-
-在书籍详情页点击“豆瓣”，可以搜索豆瓣元信息。
-
-可以同步：
-
-- 书名
-- 作者
-- 出版社
-- ISBN
-- 简介
-- 标签
-- 评分
-- 封面
-
-封面不会长期使用豆瓣外链。保存后，后端会下载图片到：
-
-```text
-/app/uploads/cover
-```
-
-如果豆瓣图片直连失败，镜像里已经内置 `douban-api-rs` 作为本地兜底代理，不需要再单独启动 `douban-api-rs` 容器。
-
-## 本地开发
-
-安装依赖：
-
-```bash
+# 安装依赖
 corepack enable
 pnpm install
-```
 
-启动前端开发服务：
-
-```bash
+# 启动前端开发服务（默认 http://127.0.0.1:3000）
 pnpm start
-```
 
-构建前端：
-
-```bash
+# 构建前端
 pnpm build
-```
 
-启动 Go 后端：
-
-```bash
+# 启动 Go 后端（另一个终端）
 cd httpserver
 STATIC_DIR=../build ENABLE_HTTP_SERVER=true ENABLE_LIBRARY_SERVER=true ENABLE_OPDS=true PORT=8080 go run .
-```
 
-测试 Go 后端：
-
-```bash
+# 跑 Go 测试
 cd httpserver
 go test ./...
 ```
 
-## 常用排查命令
+---
 
-查看容器是否运行：
+## 🙏 致谢
 
-```bash
-docker ps | grep koodo-centralized
-```
+Books 不是从零写的，感谢这些优秀的开源项目：
 
-查看日志：
+- **[Koodo Reader](https://github.com/koodo-reader/koodo-reader)** — 本项目的基础与阅读内核，保留了它出色的阅读体验。
+- **[talebook](https://github.com/talebook/talebook)** — 同类自托管书库项目，给了我们“如何做得更好”的方向。
+- **[douban-api-rs](https://github.com/cxfksword/douban-api-rs)** — 内置的豆瓣封面兜底代理。
 
-```bash
-docker logs -f koodo-centralized
-```
+---
 
-进入书库数据目录：
+## ⚖️ License
 
-```bash
-cd /vol1/data/Books/data/uploads
-```
+本项目基于 [GNU Affero General Public License v3.0](LICENSE)（AGPL-3.0）开源。使用、修改、分发请遵守该协议；涉及网络服务端时，请同样以 AGPL-3.0 开放源码。
 
-查看封面文件：
+---
 
-```bash
-ls -lh /vol1/data/Books/data/uploads/cover
-```
+<div align="center">
 
-## 关键文件
+**Books** · 让你的电子书，随处可读 📖
 
-- `Dockerfile`：构建镜像
-- `docker-compose.yml`：Compose 启动配置
-- `httpserver/library.go`：服务端书库接口
-- `httpserver/douban.go`：豆瓣元信息获取
-- `src/utils/storage/serverLibrary.ts`：前端调用服务端书库
-- `src/components/dialogs/detailDialog/component.tsx`：书籍详情页
-
-## 注意事项
-
-- 一定要挂载 `/app/uploads`，否则容器删除后数据也会丢。
-- 管理员默认密码建议部署后尽快修改。
-- 当前项目已经不是原版 Koodo Reader，而是面向自托管中心化书库的 Books。
+</div>
